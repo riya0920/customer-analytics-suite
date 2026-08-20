@@ -1,0 +1,208 @@
+8000 customers, 90092 transactions. Calibration 0-511 days, holdout 511-730.
+Calibration repeat purchases: mean 8.38, 1507 customers with zero.
+
+==============================================================================
+1. SEGMENTATION -- AND WHETHER THE SEGMENTS PREDICT ANYTHING
+==============================================================================
+Bootstrap stability (adjusted Rand index over 20 resamples):
+  mean 0.939   min 0.895   max 0.973
+
+FORWARD TEST -- segment membership at time T vs behaviour in T+1:
+            n  cal_frequency  cal_monetary  recency  churn_rate_T1  holdout_orders  holdout_spend
+segment                                                                                          
+0        1357          3.103        43.394  404.361          0.913           0.189         11.426
+1         790         36.072        70.686   67.344          0.367           8.368        600.039
+2         548          0.684        20.074   94.769          0.378           1.036         68.254
+3        3083          8.726        81.011  114.614          0.413           2.442        184.270
+4        2222          3.162        41.167  426.337          0.946           0.109          6.967
+
+Churn-rate spread across segments: 36.7% to 94.6% (57.9 points).
+Holdout spend spread: $7 to $600.
+
+THIS IS THE VALIDATION THAT IS ALWAYS MISSING. Segments that do not
+separate FUTURE behaviour are decoration -- you can always partition a
+cloud of points and give the parts names. The question is whether
+membership at time T tells you anything about T+1, and the only way to
+answer it is to hold out time and look.
+
+OPERATIONALLY, what to do with a 58-point churn spread: it is a
+targeting prior, not a playbook. It says where retention budget has the
+most headroom, and it says nothing about what intervention works -- that
+needs a test per segment. And note the reflexive problem: acting on a
+segment CHANGES it, so the churn rates above are pre-intervention
+baselines that stop being true the moment anyone uses them.
+
+==============================================================================
+2. CLV -- BG/NBD + GAMMA-GAMMA, VALIDATED ON A TEMPORAL HOLDOUT
+==============================================================================
+BG/NBD fitted: r=0.6071 alpha=15.5045 a=1.2730 b=15.1220
+Gamma-Gamma fitted: p=2.9764 q=6.5189 v=135.0321
+
+Gamma-Gamma assumes monetary value is independent of frequency.
+Measured correlation(frequency, mean order value) = +0.0035
+  -> assumption holds well enough
+
+DECILE CALIBRATION on the temporal holdout:
+          n  predicted_clv  actual_clv  predicted_orders  actual_orders  ratio
+decile                                                                        
+0       800           0.00        0.00              0.00           0.00    NaN
+1       800           0.42        0.27              0.01           0.01  1.556
+2       800           4.16        3.03              0.06           0.04  1.373
+3       800          15.93        5.54              0.23           0.08  2.875
+4       800          20.74       11.29              0.29           0.17  1.837
+5       800          43.28       51.75              0.67           0.82  0.836
+6       800          89.75       84.49              1.47           1.38  1.062
+7       800         169.14      164.04              2.73           2.70  1.031
+8       800         311.56      263.24              4.66           3.97  1.184
+9       800         791.40      804.50              9.75           9.85  0.984
+
+Spearman rank correlation (predicted vs actual holdout spend): 0.7385
+Pearson correlation on individuals:                            0.7987
+
+THE AGGREGATE-VS-INDIVIDUAL HONESTY NOTE, shown rather than said: the
+decile table is well behaved and the individual correlation is much
+weaker. That is what these models are: they RANK populations well and
+MISPREDICT individuals. A decile table that looks this good next to an
+individual correlation of 0.80 is the whole caveat in two numbers.
+Use it to size a segment's value; do not use it to decide what one
+customer is worth.
+
+PROBABILISTIC MODEL vs ML CHALLENGER (same holdout, 30% of customers):
+                       spearman        mae
+model                                     
+BG/NBD + Gamma-Gamma      0.739     88.640
+GBM challenger            0.714     95.343
+
+Better ranking: BG/NBD + Gamma-Gamma.
+RECOMMENDATION: the probabilistic model, and not because it won on
+every number. It gives P(alive) and a purchase-count distribution rather
+than a point estimate, it extrapolates to horizons it never saw, and its
+four parameters are interpretable enough to argue with. The GBM needs a
+labelled future to train on, which means it can only ever predict
+horizons you have already lived through -- and it silently relearns
+whatever selection is in the label window.
+
+HANDOFF 1 -- CLV wired back into segments:
+         size    mean        sum  share_of_value  share_of_customers
+segment                                                             
+0        1357   15.62   21194.80            0.02                0.17
+1         790  606.59  479206.42            0.41                0.10
+2         548  161.11   88289.54            0.08                0.07
+3        3083  176.63  544553.02            0.47                0.39
+4        2222   10.74   23864.02            0.02                0.28
+
+Top 20% of customers hold 76.3% of predicted value.
+
+==============================================================================
+3. ATTRIBUTION -- SCORED AGAINST KNOWN TRUTH
+==============================================================================
+Credited share of conversions by channel (rows sum to 1):
+                 display    social     email  paid_search  retargeting      _mae
+method                                                                          
+** TRUTH **       0.0889    0.2000    0.3111       0.4000       0.0000    0.0000
+last_touch        0.0271    0.0455    0.2302       0.3395       0.3578    0.1431
+first_touch       0.6470    0.2495    0.0580       0.0295       0.0160    0.2494
+linear            0.2632    0.2101    0.2109       0.1694       0.1463    0.1323
+time_decay        0.1572    0.1550    0.2431       0.2318       0.2130    0.1125
+markov_removal    0.0000    0.2028    0.2773       0.3375       0.1825    0.0741
+
+Mean absolute error against truth, ranked:
+  markov_removal     0.0741
+  time_decay         0.1125
+  linear             0.1323
+  last_touch         0.1431
+  first_touch        0.2494
+
+==============================================================================
+4. THE PLANTED CHANNEL -- ATTRIBUTION IS NOT INCREMENTALITY
+==============================================================================
+`retargeting` has a TRUE causal effect of EXACTLY ZERO. It was targeted at
+users who were already likely to convert -- which is what a real
+retargeting programme does: it follows intent, it does not create it.
+
+Naive read of the data:
+  conversion rate WITH retargeting    : 0.2832
+  conversion rate WITHOUT retargeting : 0.2346
+  apparent 'lift'              : +0.0486  (TRUE lift: 0.0000)
+
+What each attribution method credits it:
+  last_touch         0.3578   (truth 0.0000)
+  first_touch        0.0160   (truth 0.0000)
+  linear             0.1463   (truth 0.0000)
+  time_decay         0.2130   (truth 0.0000)
+  markov_removal     0.1825   (truth 0.0000)
+
+EVERY method credits it, including markov_removal -- which sounds causal
+and is not. 'Remove the channel from the graph' is a statement about the
+observed paths, not about the world: it assumes the users who saw that
+channel would otherwise have walked the same graph minus one node. When
+the channel was TARGETED at high-intent users, removing it also removes
+the intent that arrived with it, and the method charges that intent to
+the channel.
+
+WHAT WOULD ACTUALLY SETTLE IT -- the experiment, sized:
+  Design: geo holdout. Split matched markets, switch retargeting OFF in the
+  control markets, leave everything else running. Primary metric is
+  conversions per market; the estimand is the difference, which IS the
+  incremental effect and is exactly what no observational method above
+  can recover.
+  Why geo and not user-level: cookie-level holdouts leak (same person,
+  many devices) and the ad platform optimises delivery against the
+  holdout, which breaks the randomisation.
+  Cost: the foregone spend in control markets for the test duration --
+  which, if the effect really is zero, is not a cost at all. That
+  asymmetry is the pitch: the experiment is cheap precisely in the world
+  where the channel is worthless.
+
+==============================================================================
+5. THE BUDGET DECISION -- WHAT LAST-TOUCH COSTS
+==============================================================================
+Budget $1500 (~$0.19 per prospect) allocated in proportion to each
+method's credited share,
+then evaluated in the TRUE world (concave reach, saturation 0.6):
+                  conversions  spend_on_zero_effect  conversions_lost_vs_truth       pct_lost
+allocation                                                                                   
+last_touch            2072.10                536.75                      93.61           4.32
+first_touch           1939.78                 23.94                     225.93          10.43
+linear                2050.63                219.50                     115.08           5.31
+time_decay            2085.95                319.44                      79.76           3.68
+markov_removal        1978.02                273.69                     187.69           8.67
+TRUTH                 2165.71                  0.00                       0.00           0.00
+
+THE HEADLINE FOR THE MEMO: allocating on last-touch instead of truth
+costs 94 conversions (4.3% of achievable) and puts $537 -- 35.8% of
+the budget -- into a channel that causes nothing.
+
+AND A RESULT THAT COMPLICATES THE OBVIOUS STORY. Rank the methods by
+attribution error (section 3) and by budget outcome (here) and the
+orders DISAGREE:
+
+  method             MAE vs truth conversions lost
+  markov_removal           0.0741          187.7
+  time_decay               0.1125           79.8
+  linear                   0.1323          115.1
+  last_touch               0.1431           93.6
+  first_touch              0.2494          225.9
+
+Lowest attribution error: markov_removal. Best budget outcome: time_decay.
+
+They are not the same method. Getting the CREDIT SHARES closest to
+truth is not the same as making the best DECISION, because the
+decision runs the shares through channel costs and a concave reach
+curve. A method can be wrong in a direction that happens to be cheap
+-- over-crediting a channel you were going to saturate anyway costs
+nothing -- or wrong in a direction that is expensive. Choosing an
+attribution method on MAE alone optimises the wrong objective; the
+objective is the allocation it produces.
+
+HANDOFF 2 -- why CLV belongs in this decision: the allocation above
+maximises CONVERSIONS, and conversions are not equally valuable. Top
+versus bottom CLV decile on holdout spend is $804 against $0. A
+channel that acquires cheap, low-value customers can win a
+conversion-based allocation and lose a value-based one. Weighting the
+objective by predicted CLV per acquired customer is the join between
+sections 2 and 5, and it is NOT built here -- the simulator does not
+link journeys to customer ids, which is the single biggest structural
+gap in this project.
+
+(350s)

@@ -1,0 +1,178 @@
+{
+  "segmentation": {
+    "ari_mean": 0.939489084715872,
+    "ari_min": 0.894715120084091,
+    "churn_spread": 0.579,
+    "forward": {
+      "0": {
+        "n": 1357,
+        "cal_frequency": 3.103,
+        "cal_monetary": 43.394,
+        "recency": 404.361,
+        "churn_rate_T1": 0.913,
+        "holdout_orders": 0.189,
+        "holdout_spend": 11.426
+      },
+      "1": {
+        "n": 790,
+        "cal_frequency": 36.072,
+        "cal_monetary": 70.686,
+        "recency": 67.344,
+        "churn_rate_T1": 0.367,
+        "holdout_orders": 8.368,
+        "holdout_spend": 600.039
+      },
+      "2": {
+        "n": 548,
+        "cal_frequency": 0.684,
+        "cal_monetary": 20.074,
+        "recency": 94.769,
+        "churn_rate_T1": 0.378,
+        "holdout_orders": 1.036,
+        "holdout_spend": 68.254
+      },
+      "3": {
+        "n": 3083,
+        "cal_frequency": 8.726,
+        "cal_monetary": 81.011,
+        "recency": 114.614,
+        "churn_rate_T1": 0.413,
+        "holdout_orders": 2.442,
+        "holdout_spend": 184.27
+      },
+      "4": {
+        "n": 2222,
+        "cal_frequency": 3.162,
+        "cal_monetary": 41.167,
+        "recency": 426.337,
+        "churn_rate_T1": 0.946,
+        "holdout_orders": 0.109,
+        "holdout_spend": 6.967
+      }
+    }
+  },
+  "clv": {
+    "params": {
+      "r": 0.607103010149516,
+      "alpha": 15.504475335520475,
+      "a": 1.2729829302247744,
+      "b": 15.122021255249742,
+      "p": 2.976423973379028,
+      "q": 6.5189215896102395,
+      "v": 135.03205655968148
+    },
+    "spearman": 0.7384723701877913,
+    "individual_pearson": 0.7987237496609121,
+    "freq_monetary_corr": 0.003500635725858151,
+    "top20_value_share": 0.7625595856356675,
+    "challenger": {
+      "BG/NBD + Gamma-Gamma": {
+        "spearman": 0.7387,
+        "mae": 88.6397
+      },
+      "GBM challenger": {
+        "spearman": 0.7136,
+        "mae": 95.3431
+      }
+    }
+  },
+  "attribution": {
+    "** TRUTH **": {
+      "display": 0.0889,
+      "social": 0.2,
+      "email": 0.3111,
+      "paid_search": 0.4,
+      "retargeting": 0.0,
+      "_mae": 0.0
+    },
+    "last_touch": {
+      "display": 0.0271,
+      "social": 0.0455,
+      "email": 0.2302,
+      "paid_search": 0.3395,
+      "retargeting": 0.3578,
+      "_mae": 0.1431
+    },
+    "first_touch": {
+      "display": 0.647,
+      "social": 0.2495,
+      "email": 0.058,
+      "paid_search": 0.0295,
+      "retargeting": 0.016,
+      "_mae": 0.2494
+    },
+    "linear": {
+      "display": 0.2632,
+      "social": 0.2101,
+      "email": 0.2109,
+      "paid_search": 0.1694,
+      "retargeting": 0.1463,
+      "_mae": 0.1323
+    },
+    "time_decay": {
+      "display": 0.1572,
+      "social": 0.155,
+      "email": 0.2431,
+      "paid_search": 0.2318,
+      "retargeting": 0.213,
+      "_mae": 0.1125
+    },
+    "markov_removal": {
+      "display": 0.0,
+      "social": 0.2028,
+      "email": 0.2773,
+      "paid_search": 0.3375,
+      "retargeting": 0.1825,
+      "_mae": 0.0741
+    }
+  },
+  "planted_channel": {
+    "channel": "retargeting",
+    "apparent_lift": 0.04856237222649437,
+    "credited": {
+      "last_touch": 0.3578336557059961,
+      "first_touch": 0.015957446808510637,
+      "linear": 0.1463341622916083,
+      "time_decay": 0.2129597751874872,
+      "markov_removal": 0.18246060701295225
+    }
+  },
+  "budget": {
+    "last_touch": {
+      "conversions": 2072.104,
+      "spend_on_zero_effect": 536.75,
+      "conversions_lost_vs_truth": 93.608,
+      "pct_lost": 4.322
+    },
+    "first_touch": {
+      "conversions": 1939.781,
+      "spend_on_zero_effect": 23.936,
+      "conversions_lost_vs_truth": 225.931,
+      "pct_lost": 10.432
+    },
+    "linear": {
+      "conversions": 2050.633,
+      "spend_on_zero_effect": 219.501,
+      "conversions_lost_vs_truth": 115.079,
+      "pct_lost": 5.314
+    },
+    "time_decay": {
+      "conversions": 2085.949,
+      "spend_on_zero_effect": 319.44,
+      "conversions_lost_vs_truth": 79.763,
+      "pct_lost": 3.683
+    },
+    "markov_removal": {
+      "conversions": 1978.021,
+      "spend_on_zero_effect": 273.691,
+      "conversions_lost_vs_truth": 187.691,
+      "pct_lost": 8.667
+    },
+    "TRUTH": {
+      "conversions": 2165.712,
+      "spend_on_zero_effect": 0.0,
+      "conversions_lost_vs_truth": 0.0,
+      "pct_lost": 0.0
+    }
+  }
+}

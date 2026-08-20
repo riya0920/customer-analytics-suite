@@ -47,19 +47,112 @@ def linear(journeys, conversions, channels) -> dict:
     return _norm(credit)
 
 
-def time_decay(journeys, conversions, channels, half_life: float = 2.0) -> dict:
-    """Exponential decay toward the conversion. Positions are steps, not days --
-    the simulator has no touch timestamps, and pretending otherwise would be a
-    fake precision."""
+def time_decay(journeys, conversions, channels, half_life: float = 2.0,
+               touch_days=None, half_life_days: float = 7.0) -> dict:
+    """Exponential decay toward the conversion.
+
+    The first pass decayed over journey POSITION because the simulator had no
+    touch timestamps, and said so rather than pretending otherwise. It now has
+    them, so the decay is over DAYS -- which is what time-decay attribution
+    actually means. Position decay treats a touch three steps back the same
+    whether it was yesterday or three weeks ago, and those are very different
+    claims about influence.
+    """
     credit = {c: 0.0 for c in channels}
-    for j, y in zip(journeys, conversions):
+    for i, (j, y) in enumerate(zip(journeys, conversions)):
         if not (y and j):
             continue
-        w = np.array([0.5 ** ((len(j) - 1 - i) / half_life) for i in range(len(j))])
+        if touch_days is not None:
+            days = np.asarray(touch_days[i], float)
+            age = days[-1] - days                      # days before conversion
+            w = 0.5 ** (age / half_life_days)
+        else:
+            w = np.array([0.5 ** ((len(j) - 1 - k) / half_life)
+                          for k in range(len(j))])
         w = w / w.sum()
         for ch, wi in zip(j, w):
             credit[ch] += wi
     return _norm(credit)
+
+
+def shapley(journeys, conversions, channels, max_order: int = 4) -> dict:
+    """Shapley value attribution over channel COALITIONS.
+
+    The idea: a channel's credit is its average marginal contribution to the
+    conversion rate across every subset it could join. Unlike the heuristics it
+    is symmetric, efficient (credits sum to the total) and satisfies the dummy
+    axiom -- a channel that never changes any coalition's conversion rate gets
+    exactly zero.
+
+    THAT LAST AXIOM IS WHY IT IS WORTH RUNNING HERE. Shapley is the only method
+    in this file with a formal guarantee that a genuinely useless channel scores
+    zero, so it is the strongest possible test of the planted-channel section: if
+    even Shapley credits retargeting, the problem is definitively the DATA and
+    not the estimator.
+
+    Implemented over the SET of channels in a journey (order ignored), with
+    coalition conversion rates estimated empirically. Subsets larger than
+    `max_order` are dropped -- with 5 channels that is not binding, and on a real
+    catalogue of 30 channels the full computation is 2^30 coalitions and needs
+    sampling instead.
+    """
+    from itertools import combinations
+
+    idx = {c: i for i, c in enumerate(channels)}
+    tot = np.zeros(1 << len(channels))
+    conv = np.zeros(1 << len(channels))
+    for j, y in zip(journeys, conversions):
+        mask = 0
+        for ch in set(j):
+            if ch in idx:
+                mask |= 1 << idx[ch]
+        tot[mask] += 1
+        conv[mask] += y
+
+    def rate(mask):
+        """Conversion rate of journeys whose channel set is EXACTLY this."""
+        return conv[mask] / tot[mask] if tot[mask] > 0 else 0.0
+
+    from math import factorial
+    n = len(channels)
+    values = {c: 0.0 for c in channels}
+    used_weight = {c: 0.0 for c in channels}
+    others = {c: [o for o in channels if o != c] for c in channels}
+    for c in channels:
+        i = idx[c]
+        for r in range(0, min(max_order, n - 1) + 1):
+            for subset in combinations(others[c], r):
+                m = 0
+                for o in subset:
+                    m |= 1 << idx[o]
+                with_c = m | (1 << i)
+                # A coalition with NO OBSERVED JOURNEYS has an unknown rate, not
+                # a rate of zero. Treating it as zero was a real bug: it made the
+                # marginal contribution of every channel look like -rate(m)
+                # whenever the larger coalition was unobserved, and on a fixture
+                # where two channels never co-occur it drove both Shapley values
+                # to +/- floating-point noise that normalisation then amplified
+                # into a 1.0 / 0.0 split between interchangeable channels.
+                #
+                # The empty coalition is the exception: no channels means no
+                # marketing, and a rate of zero is the right reading.
+                if m != 0 and tot[m] == 0:
+                    continue
+                if tot[with_c] == 0:
+                    continue
+                marginal = rate(with_c) - rate(m)
+                weight = factorial(r) * factorial(n - r - 1) / factorial(n)
+                values[c] += weight * marginal
+                used_weight[c] += weight
+    # Renormalise by the weight actually used, so a channel that appears in few
+    # observed coalitions is not penalised for the coalitions we never saw.
+    values = {c: (v / used_weight[c] if used_weight[c] > 0 else 0.0)
+              for c, v in values.items()}
+    # Shapley values can be negative; a channel that makes coalitions WORSE has
+    # earned that. Clipping at zero before normalising would hide it, so the
+    # negative is carried into the share and the caller can see it.
+    shifted = {c: max(v, 0.0) for c, v in values.items()}
+    return _norm(shifted)
 
 
 def markov_removal(journeys, conversions, channels, order: int = 1) -> dict:
@@ -129,6 +222,7 @@ METHODS = {
     "linear": linear,
     "time_decay": time_decay,
     "markov_removal": markov_removal,
+    "shapley": shapley,
 }
 
 

@@ -94,7 +94,7 @@ def build(out_dir: str) -> dict:
     txn = np.array(txns, dtype=np.float64)
 
     # ---------------- marketing journeys ---------------------------------
-    journeys, conversions = [], []
+    journeys, conversions, journey_customer, touch_times = [], [], [], []
     for c in range(N_CUSTOMERS):
         n_touch = int(RNG.integers(1, 9))
         base = propensity[c]
@@ -118,6 +118,24 @@ def build(out_dir: str) -> dict:
         converted = int(RNG.random() < p)
         journeys.append(chans)
         conversions.append(converted)
+        # THE LINK the first pass did not have. Without a customer id on the
+        # journey, the budget objective cannot be weighted by the VALUE of the
+        # customers a channel acquires -- which is the whole point of computing
+        # CLV in the same project.
+        journey_customer.append(c)
+        # Touch TIMESTAMPS, so time-decay attribution can decay over days rather
+        # than over journey position. Touches land in the 30 days before the
+        # conversion decision, ordered, with the gap between them shrinking as
+        # the journey closes -- which is what a real funnel looks like.
+        n = len(chans)
+        gaps = np.sort(RNG.exponential(6.0, n))[::-1]
+        t = 0.0
+        times = []
+        for g in gaps:
+            t += float(g)
+            times.append(round(t, 3))
+        span = max(times[-1], 1e-6)
+        touch_times.append([round(30.0 * x / span, 3) for x in times])
 
     truth = {
         "channel_effects": {k: v["effect"] for k, v in CHANNELS.items()},
@@ -129,7 +147,8 @@ def build(out_dir: str) -> dict:
 
     np.save(os.path.join(out_dir, "transactions.npy"), txn)
     with open(os.path.join(out_dir, "journeys.json"), "w") as f:
-        json.dump(dict(journeys=journeys, conversions=conversions), f)
+        json.dump(dict(journeys=journeys, conversions=conversions,
+                       customer_id=journey_customer, touch_days=touch_times), f)
     with open(os.path.join(out_dir, "TRUTH.json"), "w") as f:
         json.dump(truth, f, indent=2)
 

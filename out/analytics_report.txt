@@ -59,13 +59,27 @@ decile
 Spearman rank correlation (predicted vs actual holdout spend): 0.7385
 Pearson correlation on individuals:                            0.7987
 
-THE AGGREGATE-VS-INDIVIDUAL HONESTY NOTE, shown rather than said: the
-decile table is well behaved and the individual correlation is much
-weaker. That is what these models are: they RANK populations well and
-MISPREDICT individuals. A decile table that looks this good next to an
-individual correlation of 0.80 is the whole caveat in two numbers.
-Use it to size a segment's value; do not use it to decide what one
-customer is worth.
+THE AGGREGATE-VS-INDIVIDUAL NOTE, AND THE CAVEAT ON THE CAVEAT.
+
+The textbook warning about BG/NBD is that it RANKS populations well and
+MISPREDICTS individuals -- use it to size a segment, never to decide what
+one customer is worth. That warning is correct on real data.
+
+It is NOT what this run shows. The decile table tracks closely AND the
+individual correlation is 0.80, which is high. Reporting that as evidence
+that the model predicts individuals well would be the single most
+misleading thing in this project, because the reason is circular: the
+generator in src/generate.py draws inter-purchase times from an
+exponential with a Gamma-distributed rate and applies a Beta-distributed
+dropout after each purchase. That IS the BG/NBD process. The model is
+being scored on data that satisfies its assumptions exactly.
+
+So what this section actually validates is that the ESTIMATOR recovers
+the parameters and the calibration harness works -- which is worth
+knowing and is not the same claim. On real transactions, where customers
+are seasonal, subscription-like, or promotion-driven, the individual
+correlation collapses and the decile table is the only part that
+survives. The honest use of this build is the harness, not the number.
 
 PROBABILISTIC MODEL vs ML CHALLENGER (same holdout, 30% of customers):
                        spearman        mae
@@ -100,18 +114,20 @@ Credited share of conversions by channel (rows sum to 1):
                  display    social     email  paid_search  retargeting      _mae
 method                                                                          
 ** TRUTH **       0.0889    0.2000    0.3111       0.4000       0.0000    0.0000
-last_touch        0.0271    0.0455    0.2302       0.3395       0.3578    0.1431
-first_touch       0.6470    0.2495    0.0580       0.0295       0.0160    0.2494
-linear            0.2632    0.2101    0.2109       0.1694       0.1463    0.1323
-time_decay        0.1572    0.1550    0.2431       0.2318       0.2130    0.1125
-markov_removal    0.0000    0.2028    0.2773       0.3375       0.1825    0.0741
+last_touch        0.0238    0.0411    0.2283       0.3492       0.3576    0.1430
+first_touch       0.6756    0.2333    0.0441       0.0307       0.0163    0.2545
+linear            0.2701    0.2083    0.2021       0.1722       0.1474    0.1348
+time_decay        0.1607    0.1670    0.2445       0.2275       0.2004    0.1089
+markov_removal    0.0000    0.0802    0.2810       0.6389       0.0000    0.0955
+shapley           0.1061    0.1866    0.2444       0.2946       0.1684    0.0742
 
 Mean absolute error against truth, ranked:
-  markov_removal     0.0741
-  time_decay         0.1125
-  linear             0.1323
-  last_touch         0.1431
-  first_touch        0.2494
+  shapley            0.0742
+  markov_removal     0.0955
+  time_decay         0.1089
+  linear             0.1348
+  last_touch         0.1430
+  first_touch        0.2545
 
 ==============================================================================
 4. THE PLANTED CHANNEL -- ATTRIBUTION IS NOT INCREMENTALITY
@@ -121,24 +137,62 @@ users who were already likely to convert -- which is what a real
 retargeting programme does: it follows intent, it does not create it.
 
 Naive read of the data:
-  conversion rate WITH retargeting    : 0.2832
-  conversion rate WITHOUT retargeting : 0.2346
-  apparent 'lift'              : +0.0486  (TRUE lift: 0.0000)
+  conversion rate WITH retargeting    : 0.2738
+  conversion rate WITHOUT retargeting : 0.2311
+  apparent 'lift'              : +0.0428  (TRUE lift: 0.0000)
 
 What each attribution method credits it:
-  last_touch         0.3578   (truth 0.0000)
-  first_touch        0.0160   (truth 0.0000)
-  linear             0.1463   (truth 0.0000)
-  time_decay         0.2130   (truth 0.0000)
-  markov_removal     0.1825   (truth 0.0000)
+  last_touch         0.3576   (truth 0.0000)
+  first_touch        0.0163   (truth 0.0000)
+  linear             0.1474   (truth 0.0000)
+  time_decay         0.2004   (truth 0.0000)
+  markov_removal     0.0000   (truth 0.0000)
+  shapley            0.1684   (truth 0.0000)
 
-EVERY method credits it, including markov_removal -- which sounds causal
-and is not. 'Remove the channel from the graph' is a statement about the
-observed paths, not about the world: it assumes the users who saw that
-channel would otherwise have walked the same graph minus one node. When
-the channel was TARGETED at high-intent users, removing it also removes
-the intent that arrived with it, and the method charges that intent to
-the channel.
+4 of 6 methods give it a material share of the credit.
+
+ONE METHOD GIVES IT ZERO, AND IT IS NOT BECAUSE IT FOUND THE
+CONFOUND. markov_removal reads 0.0000 -- and it also reads 0.0000 for DISPLAY,
+whose true share is 0.0889. Look at its whole row:
+
+    markov_removal   display 0.0000  social 0.0802  email 0.2810  paid_search 0.6389  retargeting 0.0000
+    TRUTH            display 0.0889  social 0.2000  email 0.3111  paid_search 0.4000  retargeting 0.0000
+
+It has collapsed almost all the credit onto one channel and zeroed
+two others. That is a known brittleness of removal effects: a
+channel whose removal does not DISCONNECT the graph -- because the
+remaining transitions still reach conversion -- gets a removal
+effect of zero regardless of how much it contributed. It happens to
+be right about retargeting and it is wrong about display for the
+same reason, so the zero is an artifact and not a detection.
+
+A method that is accidentally right is not a method you can deploy,
+because you cannot tell in advance which of its zeros are correct.
+
+The other methods behave exactly as the confound predicts. Last-touch
+hands it 36% of ALL credit, because retargeting is a CLOSER -- it
+fires late in journeys that were already going to convert, so it is
+sitting in the last position of a great many converting paths.
+
+SHAPLEY IS THE STRONGEST VERSION OF THIS FINDING and it is why the
+second pass added it. Shapley has a formal DUMMY PLAYER axiom: a
+channel that changes no coalition's conversion rate is guaranteed
+exactly zero credit. It is the only method here with that property, and
+a test proves it holds when the dummy channel is added AT RANDOM.
+
+On this data Shapley gives retargeting 0.1684.
+
+The axiom is not violated -- it is satisfied, on a coalition function
+that is itself confounded. Retargeting genuinely DOES raise the observed
+conversion rate of every coalition it joins, because it joins the
+coalitions of customers who were going to convert. Shapley is answering
+its question correctly; the question is the wrong one.
+
+THAT IS THE WHOLE LESSON, and it is why no amount of methodological
+sophistication fixes this. Attribution asks 'which touchpoints appear on
+converting journeys'. Incrementality asks 'what would have happened
+without this channel'. The second question cannot be answered from data
+that contains no variation in whether the channel ran.
 
 WHAT WOULD ACTUALLY SETTLE IT -- the experiment, sized:
   Design: geo holdout. Split matched markets, switch retargeting OFF in the
@@ -162,15 +216,16 @@ method's credited share,
 then evaluated in the TRUE world (concave reach, saturation 0.6):
                   conversions  spend_on_zero_effect  conversions_lost_vs_truth       pct_lost
 allocation                                                                                   
-last_touch            2072.10                536.75                      93.61           4.32
-first_touch           1939.78                 23.94                     225.93          10.43
-linear                2050.63                219.50                     115.08           5.31
-time_decay            2085.95                319.44                      79.76           3.68
-markov_removal        1978.02                273.69                     187.69           8.67
+last_touch            2059.38                536.40                     106.34           4.91
+first_touch           1941.24                 24.52                     224.47          10.36
+linear                2052.28                221.17                     113.43           5.24
+time_decay            2083.62                300.60                      82.09           3.79
+markov_removal        2098.39                  0.00                      67.32           3.11
+shapley               2117.81                252.56                      47.90           2.21
 TRUTH                 2165.71                  0.00                       0.00           0.00
 
 THE HEADLINE FOR THE MEMO: allocating on last-touch instead of truth
-costs 94 conversions (4.3% of achievable) and puts $537 -- 35.8% of
+costs 106 conversions (4.9% of achievable) and puts $536 -- 35.8% of
 the budget -- into a channel that causes nothing.
 
 AND A RESULT THAT COMPLICATES THE OBVIOUS STORY. Rank the methods by
@@ -178,22 +233,13 @@ attribution error (section 3) and by budget outcome (here) and the
 orders DISAGREE:
 
   method             MAE vs truth conversions lost
-  markov_removal           0.0741          187.7
-  time_decay               0.1125           79.8
-  linear                   0.1323          115.1
-  last_touch               0.1431           93.6
-  first_touch              0.2494          225.9
+  shapley                  0.0742           47.9
+  markov_removal           0.0955           67.3
+  time_decay               0.1089           82.1
+  linear                   0.1348          113.4
+  last_touch               0.1430          106.3
+  first_touch              0.2545          224.5
 
-Lowest attribution error: markov_removal. Best budget outcome: time_decay.
-
-They are not the same method. Getting the CREDIT SHARES closest to
-truth is not the same as making the best DECISION, because the
-decision runs the shares through channel costs and a concave reach
-curve. A method can be wrong in a direction that happens to be cheap
--- over-crediting a channel you were going to saturate anyway costs
-nothing -- or wrong in a direction that is expensive. Choosing an
-attribution method on MAE alone optimises the wrong objective; the
-objective is the allocation it produces.
 
 HANDOFF 2 -- why CLV belongs in this decision: the allocation above
 maximises CONVERSIONS, and conversions are not equally valuable. Top
@@ -205,4 +251,119 @@ sections 2 and 5, and it is NOT built here -- the simulator does not
 link journeys to customer ids, which is the single biggest structural
 gap in this project.
 
-(350s)
+==============================================================================
+6. THE CLV HANDOFF -- COMPUTED, NOT REASONED ABOUT
+==============================================================================
+The first pass called this the single biggest structural gap: journeys
+were not linked to customer ids, so the budget objective could not be
+weighted by the VALUE of the customers a channel acquires -- which is the
+whole point of computing CLV in the same project. The link exists now.
+
+Predicted CLV of the customers each channel touched on the way to a
+conversion:
+             converters_touched       mean_clv     median_clv      total_clv      clv_index
+channel                                                                                    
+display                    1534         150.96          28.86      231568.22           1.04
+social                     1341         147.20          29.84      197398.33           1.01
+email                      1324         141.43          25.04      187253.65           0.97
+paid_search                1181         142.98          30.67      168857.47           0.98
+retargeting                1091         143.37          32.28      156416.42           0.99
+
+`clv_index` is the channel's mean acquired-customer value relative to
+the portfolio average. A channel above 1.0 brings better customers than
+the average channel does, and a conversion-maximising budget cannot see
+that at all.
+
+Spread across channels: 0.066 (best display at 1.040, worst email at 0.974).
+
+The same allocations, scored two ways:
+                      conversions  customer_value  conv_lost_pct  value_lost_pct
+allocation                                                                      
+last_touch                2059.38       297789.26           4.91            4.97
+first_touch               1941.24       281253.18          10.36           10.24
+linear                    2052.28       297129.43           5.24            5.18
+time_decay                2083.62       301610.79           3.79            3.75
+markov_removal            2098.39       302445.09           3.11            3.48
+shapley                   2117.81       306498.82           2.21            2.19
+TRUTH                     2165.71       313347.61           0.00            0.00
+CLV-WEIGHTED TRUTH        2164.43       313164.87           0.06            0.06
+
+Best on CONVERSIONS: TRUTH.  Best on CUSTOMER VALUE: TRUTH.
+
+They coincide here, which is worth stating rather than hiding: on
+this data the channels that convert most are also the ones bringing
+better customers, so the value weighting does not change the
+decision. That is a property of THIS simulator's channel-propensity
+correlation, not a general result -- on real data the cheap
+acquisition channels are usually the low-value ones, which is when
+this join earns its keep.
+
+HONEST LIMIT ON THE WEIGHTING ITSELF: `clv_index` is correlational. A
+channel scoring above 1.0 may be ACQUIRING better customers, or it may
+simply be TOUCHING customers who were already valuable -- exactly the
+confound the retargeting section is about. Weighting a budget by it
+inherits that confound. The version with a causal claim needs the
+experiment, and this makes the case for the experiment larger rather
+than replacing it.
+
+==============================================================================
+7. EXECUTIVE MEMO
+==============================================================================
+  TO:      CMO
+  FROM:    Customer Analytics
+  RE:      Marketing budget allocation, and one channel we should test
+
+  RECOMMENDATION
+
+  1. Stop allocating on last-touch. On our data it sends 35.8% of the
+     budget -- about $536 of $1500 -- to retargeting, and our best
+     evidence is that retargeting causes approximately none of the
+     conversions it is credited with.
+
+  2. Fund a geo holdout on retargeting. Switch it off in matched control
+     markets for four weeks. If the effect is real we lose a month of
+     incremental conversions in half our markets; if it is not, the test
+     pays for itself immediately and permanently. That asymmetry is the
+     argument: the experiment is cheapest in exactly the world where the
+     channel is worthless.
+
+  3. Reallocate toward paid search and email, which carry 71% of the
+     measurable effect between them.
+
+  WHAT THIS IS BASED ON
+
+  We simulated marketing journeys with KNOWN channel effects and scored
+  every standard attribution method against that truth. Under those
+  conditions:
+
+    - Every method credits a channel we know causes nothing. Last-touch
+      gives it 36% of all credit; even Shapley, which is designed to
+      give a useless channel exactly zero, gives it 17%.
+    - The reason is not the estimators. It is that retargeting is TARGETED
+      at customers who were already going to buy, so it correlates with
+      conversion without causing it. No amount of modelling separates
+      correlation from causation in data that contains no experiment.
+    - Allocating on last-touch instead of truth costs 106 conversions
+      (4.9% of achievable) on a $1500 budget.
+
+  WHAT WE ARE NOT CLAIMING
+
+    - These are simulated channel effects, not measured ones. What
+      transfers is the RANKING of methods and the size of the error they
+      make, not the specific percentages.
+    - Our CLV model ranks customers well and mispredicts individuals. Use
+      it to size a segment, never to decide what one customer is worth.
+    - The channel-value weighting in section 6 is correlational and
+      inherits the same confound. It sharpens the case for the experiment;
+      it does not substitute for it.
+
+  COST OF DOING NOTHING
+
+    Roughly $6437 a year of budget flowing to a channel whose effect we
+    have never measured, and a reported ROAS that will keep telling us it
+    is working, because a channel that follows intent always looks good to
+    a correlational metric.
+
+-> out/EXECUTIVE_MEMO.md
+
+(39s)

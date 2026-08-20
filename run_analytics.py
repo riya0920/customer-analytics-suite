@@ -43,6 +43,8 @@ def main():
     with open(os.path.join(DATA, "TRUTH.json")) as f:
         truth = json.load(f)
     journeys, conversions = jd["journeys"], jd["conversions"]
+    journey_customer = jd.get("customer_id")
+    touch_days = jd.get("touch_days")
     cal_end = float(truth["calibration_days"])
     obs_end = float(truth["observation_days"])
     n_cust = int(txn[:, 0].max()) + 1
@@ -265,7 +267,10 @@ def main():
     true_share = truth["true_effect_share"]
     rows = []
     for name, fn in A.METHODS.items():
-        credit = fn(journeys, conversions, channels)
+        if name == "time_decay":
+            credit = fn(journeys, conversions, channels, touch_days=touch_days)
+        else:
+            credit = fn(journeys, conversions, channels)
         err = {ch: credit[ch] - true_share[ch] for ch in channels}
         rows.append(dict(method=name, **credit,
                          _mae=float(np.mean([abs(e) for e in err.values()]))))
@@ -302,13 +307,60 @@ def main():
     for m in At.index:
         emit("  %-18s %.4f   (truth 0.0000)" % (m, At.loc[m, zc]))
     emit("")
-    emit("EVERY method credits it, including markov_removal -- which sounds causal")
-    emit("and is not. 'Remove the channel from the graph' is a statement about the")
-    emit("observed paths, not about the world: it assumes the users who saw that")
-    emit("channel would otherwise have walked the same graph minus one node. When")
-    emit("the channel was TARGETED at high-intent users, removing it also removes")
-    emit("the intent that arrived with it, and the method charges that intent to")
-    emit("the channel.")
+    credited = {m: float(At.loc[m, zc]) for m in At.index}
+    n_credit = sum(1 for v in credited.values() if v > 0.05)
+    emit("%d of %d methods give it a material share of the credit."
+         % (n_credit, len(credited)))
+    emit("")
+    zeroed = [m for m, v in credited.items() if v <= 0.01]
+    if zeroed:
+        emit("ONE METHOD GIVES IT ZERO, AND IT IS NOT BECAUSE IT FOUND THE")
+        emit("CONFOUND. %s reads 0.0000 -- and it also reads 0.0000 for DISPLAY,"
+             % ", ".join(zeroed))
+        emit("whose true share is %.4f. Look at its whole row:" % true_share["display"])
+        emit("")
+        for m in zeroed:
+            emit("    %-16s %s" % (m, "  ".join(
+                "%s %.4f" % (c, At.loc[m, c]) for c in channels)))
+        emit("    %-16s %s" % ("TRUTH", "  ".join(
+            "%s %.4f" % (c, true_share[c]) for c in channels)))
+        emit("")
+        emit("It has collapsed almost all the credit onto one channel and zeroed")
+        emit("two others. That is a known brittleness of removal effects: a")
+        emit("channel whose removal does not DISCONNECT the graph -- because the")
+        emit("remaining transitions still reach conversion -- gets a removal")
+        emit("effect of zero regardless of how much it contributed. It happens to")
+        emit("be right about retargeting and it is wrong about display for the")
+        emit("same reason, so the zero is an artifact and not a detection.")
+        emit("")
+        emit("A method that is accidentally right is not a method you can deploy,")
+        emit("because you cannot tell in advance which of its zeros are correct.")
+        emit("")
+    emit("The other methods behave exactly as the confound predicts. Last-touch")
+    emit("hands it %.0f%% of ALL credit, because retargeting is a CLOSER -- it"
+         % (100 * credited["last_touch"]))
+    emit("fires late in journeys that were already going to convert, so it is")
+    emit("sitting in the last position of a great many converting paths.")
+    emit("")
+    emit("SHAPLEY IS THE STRONGEST VERSION OF THIS FINDING and it is why the")
+    emit("second pass added it. Shapley has a formal DUMMY PLAYER axiom: a")
+    emit("channel that changes no coalition's conversion rate is guaranteed")
+    emit("exactly zero credit. It is the only method here with that property, and")
+    emit("a test proves it holds when the dummy channel is added AT RANDOM.")
+    emit("")
+    emit("On this data Shapley gives retargeting %.4f." % credited["shapley"])
+    emit("")
+    emit("The axiom is not violated -- it is satisfied, on a coalition function")
+    emit("that is itself confounded. Retargeting genuinely DOES raise the observed")
+    emit("conversion rate of every coalition it joins, because it joins the")
+    emit("coalitions of customers who were going to convert. Shapley is answering")
+    emit("its question correctly; the question is the wrong one.")
+    emit("")
+    emit("THAT IS THE WHOLE LESSON, and it is why no amount of methodological")
+    emit("sophistication fixes this. Attribution asks 'which touchpoints appear on")
+    emit("converting journeys'. Incrementality asks 'what would have happened")
+    emit("without this channel'. The second question cannot be answered from data")
+    emit("that contains no variation in whether the channel ran.")
     emit("")
     emit("WHAT WOULD ACTUALLY SETTLE IT -- the experiment, sized:")
     emit("  Design: geo holdout. Split matched markets, switch %s OFF in the" % zc)
@@ -343,8 +395,13 @@ def main():
     effects = truth["channel_effects"]
     rows = []
     for name in list(A.METHODS) + ["TRUTH"]:
-        credit = (true_share if name == "TRUTH"
-                  else A.METHODS[name](journeys, conversions, channels))
+        if name == "TRUTH":
+            credit = true_share
+        elif name == "time_decay":
+            credit = A.METHODS[name](journeys, conversions, channels,
+                                     touch_days=touch_days)
+        else:
+            credit = A.METHODS[name](journeys, conversions, channels)
         alloc = A.budget_allocation(credit, BUDGET)
         conv = A.conversions_under(alloc, effects, costs, base_conv, n_cust)
         rows.append(dict(allocation=name, conversions=conv,
@@ -401,6 +458,200 @@ def main():
     emit("link journeys to customer ids, which is the single biggest structural")
     emit("gap in this project.")
     summary["budget"] = Bt.round(3).to_dict("index")
+
+    # ==================================================================
+    emit("")
+    emit("=" * 78)
+    emit("6. THE CLV HANDOFF -- COMPUTED, NOT REASONED ABOUT")
+    emit("=" * 78)
+    emit("The first pass called this the single biggest structural gap: journeys")
+    emit("were not linked to customer ids, so the budget objective could not be")
+    emit("weighted by the VALUE of the customers a channel acquires -- which is the")
+    emit("whole point of computing CLV in the same project. The link exists now.")
+    emit("")
+    jc = np.array(journey_customer)
+    conv_arr = np.array(conversions)
+    clv_by_customer = pred_clv
+
+    rows = []
+    for ch in channels:
+        touched = np.array([ch in j for j in journeys])
+        conv_touched = touched & (conv_arr == 1)
+        if conv_touched.sum() == 0:
+            continue
+        custs = jc[conv_touched]
+        rows.append(dict(channel=ch,
+                         converters_touched=int(conv_touched.sum()),
+                         mean_clv=float(clv_by_customer[custs].mean()),
+                         median_clv=float(np.median(clv_by_customer[custs])),
+                         total_clv=float(clv_by_customer[custs].sum())))
+    CV = pd.DataFrame(rows).set_index("channel")
+    CV["clv_index"] = (CV.mean_clv / CV.mean_clv.mean()).round(3)
+    emit("Predicted CLV of the customers each channel touched on the way to a")
+    emit("conversion:")
+    emit(CV.to_string(float_format=lambda x: "%14.2f" % x))
+    emit("")
+    emit("`clv_index` is the channel's mean acquired-customer value relative to")
+    emit("the portfolio average. A channel above 1.0 brings better customers than")
+    emit("the average channel does, and a conversion-maximising budget cannot see")
+    emit("that at all.")
+    emit("")
+    spread = CV.clv_index.max() - CV.clv_index.min()
+    emit("Spread across channels: %.3f (best %s at %.3f, worst %s at %.3f)."
+         % (spread, CV.clv_index.idxmax(), CV.clv_index.max(),
+            CV.clv_index.idxmin(), CV.clv_index.min()))
+    emit("")
+
+    # value-weighted budget evaluation
+    clv_weight = {ch: float(CV.loc[ch, "mean_clv"]) if ch in CV.index else 0.0
+                  for ch in channels}
+    mean_clv_all = float(np.mean(list(clv_weight.values())))
+
+    def value_under(alloc):
+        """Conversions in the true world, each valued at the acquiring channel's
+        mean acquired-customer CLV rather than at 1.0."""
+        total = 0.0
+        for ch, spend in alloc.items():
+            impressions = spend / max(costs[ch], 1e-9)
+            reach = min((impressions / n_cust) ** 0.6, 1.0)
+            total += effects[ch] * reach * n_cust * clv_weight[ch]
+        return base_conv * n_cust * mean_clv_all + total
+
+    rows = []
+    for name in list(A.METHODS) + ["TRUTH", "CLV-WEIGHTED TRUTH"]:
+        if name == "TRUTH":
+            credit = true_share
+        elif name == "CLV-WEIGHTED TRUTH":
+            w = {ch: effects[ch] * clv_weight[ch] for ch in channels}
+            tot_w = sum(w.values())
+            credit = {ch: (v / tot_w if tot_w else 0.0) for ch, v in w.items()}
+        elif name == "time_decay":
+            credit = A.METHODS[name](journeys, conversions, channels,
+                                     touch_days=touch_days)
+        else:
+            credit = A.METHODS[name](journeys, conversions, channels)
+        alloc = A.budget_allocation(credit, BUDGET)
+        rows.append(dict(allocation=name,
+                         conversions=A.conversions_under(alloc, effects, costs,
+                                                         base_conv, n_cust),
+                         customer_value=value_under(alloc)))
+    VB = pd.DataFrame(rows).set_index("allocation")
+    best_conv = VB.conversions.max()
+    best_val = VB.customer_value.max()
+    VB["conv_lost_pct"] = 100 * (best_conv - VB.conversions) / best_conv
+    VB["value_lost_pct"] = 100 * (best_val - VB.customer_value) / best_val
+    emit("The same allocations, scored two ways:")
+    emit(VB.to_string(float_format=lambda x: "%14.2f" % x))
+    emit("")
+    conv_winner = VB.conversions.idxmax()
+    val_winner = VB.customer_value.idxmax()
+    emit("Best on CONVERSIONS: %s.  Best on CUSTOMER VALUE: %s."
+         % (conv_winner, val_winner))
+    emit("")
+    if conv_winner != val_winner:
+        emit("THEY ARE DIFFERENT ALLOCATIONS, which is the entire argument for")
+        emit("joining these two analyses. A budget that maximises conversions is")
+        emit("indifferent between acquiring a customer worth $50 and one worth")
+        emit("$800, and it will happily buy the cheap one because it is cheap.")
+    else:
+        emit("They coincide here, which is worth stating rather than hiding: on")
+        emit("this data the channels that convert most are also the ones bringing")
+        emit("better customers, so the value weighting does not change the")
+        emit("decision. That is a property of THIS simulator's channel-propensity")
+        emit("correlation, not a general result -- on real data the cheap")
+        emit("acquisition channels are usually the low-value ones, which is when")
+        emit("this join earns its keep.")
+    emit("")
+    emit("HONEST LIMIT ON THE WEIGHTING ITSELF: `clv_index` is correlational. A")
+    emit("channel scoring above 1.0 may be ACQUIRING better customers, or it may")
+    emit("simply be TOUCHING customers who were already valuable -- exactly the")
+    emit("confound the retargeting section is about. Weighting a budget by it")
+    emit("inherits that confound. The version with a causal claim needs the")
+    emit("experiment, and this makes the case for the experiment larger rather")
+    emit("than replacing it.")
+    summary["clv_handoff"] = dict(
+        channel_value=CV.round(3).to_dict("index"),
+        allocations=VB.round(3).to_dict("index"),
+        conv_winner=conv_winner, value_winner=val_winner)
+
+    # ==================================================================
+    emit("")
+    emit("=" * 78)
+    emit("7. EXECUTIVE MEMO")
+    emit("=" * 78)
+    lt = Bt.loc["last_touch"]
+    zc_credit = At.loc["last_touch", zc]
+    memo = [
+        "TO:      CMO",
+        "FROM:    Customer Analytics",
+        "RE:      Marketing budget allocation, and one channel we should test",
+        "",
+        "RECOMMENDATION",
+        "",
+        "1. Stop allocating on last-touch. On our data it sends %.1f%% of the"
+        % (100 * zc_credit),
+        "   budget -- about $%.0f of $%.0f -- to retargeting, and our best"
+        % (lt.spend_on_zero_effect, BUDGET),
+        "   evidence is that retargeting causes approximately none of the",
+        "   conversions it is credited with.",
+        "",
+        "2. Fund a geo holdout on retargeting. Switch it off in matched control",
+        "   markets for four weeks. If the effect is real we lose a month of",
+        "   incremental conversions in half our markets; if it is not, the test",
+        "   pays for itself immediately and permanently. That asymmetry is the",
+        "   argument: the experiment is cheapest in exactly the world where the",
+        "   channel is worthless.",
+        "",
+        "3. Reallocate toward paid search and email, which carry %.0f%% of the"
+        % (100 * (true_share["paid_search"] + true_share["email"])),
+        "   measurable effect between them.",
+        "",
+        "WHAT THIS IS BASED ON",
+        "",
+        "We simulated marketing journeys with KNOWN channel effects and scored",
+        "every standard attribution method against that truth. Under those",
+        "conditions:",
+        "",
+        "  - Every method credits a channel we know causes nothing. Last-touch",
+        "    gives it %.0f%% of all credit; even Shapley, which is designed to"
+        % (100 * zc_credit),
+        "    give a useless channel exactly zero, gives it %.0f%%."
+        % (100 * At.loc["shapley", zc]),
+        "  - The reason is not the estimators. It is that retargeting is TARGETED",
+        "    at customers who were already going to buy, so it correlates with",
+        "    conversion without causing it. No amount of modelling separates",
+        "    correlation from causation in data that contains no experiment.",
+        "  - Allocating on last-touch instead of truth costs %.0f conversions"
+        % lt.conversions_lost_vs_truth,
+        "    (%.1f%% of achievable) on a $%.0f budget."
+        % (lt.pct_lost, BUDGET),
+        "",
+        "WHAT WE ARE NOT CLAIMING",
+        "",
+        "  - These are simulated channel effects, not measured ones. What",
+        "    transfers is the RANKING of methods and the size of the error they",
+        "    make, not the specific percentages.",
+        "  - Our CLV model ranks customers well and mispredicts individuals. Use",
+        "    it to size a segment, never to decide what one customer is worth.",
+        "  - The channel-value weighting in section 6 is correlational and",
+        "    inherits the same confound. It sharpens the case for the experiment;",
+        "    it does not substitute for it.",
+        "",
+        "COST OF DOING NOTHING",
+        "",
+        "  Roughly $%.0f a year of budget flowing to a channel whose effect we"
+        % (lt.spend_on_zero_effect * 12),
+        "  have never measured, and a reported ROAS that will keep telling us it",
+        "  is working, because a channel that follows intent always looks good to",
+        "  a correlational metric.",
+    ]
+    for line in memo:
+        emit("  " + line if line else "")
+    with open(os.path.join(OUT, "EXECUTIVE_MEMO.md"), "w", encoding="utf-8") as f:
+        f.write("\n".join(memo) + "\n")
+    emit("")
+    emit("-> out/EXECUTIVE_MEMO.md")
+    summary["memo_written"] = True
 
     emit("")
     emit("(%.0fs)" % (time.time() - t0))

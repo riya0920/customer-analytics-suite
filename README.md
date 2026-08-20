@@ -1,14 +1,15 @@
 # DATA-1 — Customer Analytics: Segmentation → CLV → Attribution
 
-**This is not deployable.** It is the first ~20% of the spec: three questions on
-one dataset with the handoffs explicit, and — the differentiator — attribution
-methods **validated against known ground truth** instead of asserted. Missing 80%
-at the bottom.
+**Roughly 50% of the spec.** Three questions on one dataset with the handoffs
+explicit, attribution **validated against known ground truth** - plus the four
+things the first pass named as missing: the **customer link** it called its single
+biggest structural gap, touch timestamps, Shapley attribution, and the executive
+memo.
 
 ```bash
-python src/generate.py       # ~30s  transactions + journeys with planted effects
-python run_analytics.py      # ~6min
-python -m pytest tests -q    # 16 tests
+python src/generate.py       # ~40s  transactions + journeys, now with customer ids
+python run_analytics.py      # ~1min
+python -m pytest tests -q    # 29 tests
 ```
 
 8,000 customers, 90,092 transactions, 730 days (511 calibration / 219 holdout).
@@ -157,20 +158,108 @@ curve — a method can be wrong in a direction that happens to be cheap.
 > channel's reach and made all six allocations tie at exactly 2,600 conversions.
 > A section where every method wins equally is a broken section, not a finding.
 
-## The other 80% — what is NOT here
+## Second pass: four gaps the first pass named
 
-- **The two-page executive memo** the spec asks for. There is a report, not a memo.
+### The CLV handoff - computed, not reasoned about
+
+The first pass called this *the single biggest structural gap*: journeys weren't
+linked to customer ids, so the budget objective couldn't be weighted by the value
+of the customers a channel acquires - which is the whole point of computing CLV
+in the same project. The link exists now.
+
+| channel | converters touched | mean CLV | **CLV index** |
+|---|---|---|---|
+| display | 1,534 | $150.96 | **1.040** |
+| social | 1,341 | $147.20 | 1.010 |
+| retargeting | 1,091 | $143.37 | 0.990 |
+| paid_search | 1,181 | $142.98 | 0.980 |
+| email | 1,324 | $141.43 | 0.974 |
+
+Scoring the same allocations two ways - conversions, and conversions weighted by
+acquired-customer CLV - gives **the same winner**. And that's reported rather than
+hidden: the CLV spread across channels is only 0.066, because this simulator
+doesn't correlate channel with customer value. The join has nothing to bite on
+*here*, which is a property of the lab, not a general result. On real data the
+cheap acquisition channels are usually the low-value ones, which is exactly when
+this weighting earns its keep.
+
+**Honest limit on the weighting itself:** `clv_index` is correlational. A channel
+above 1.0 may be *acquiring* better customers, or may simply be *touching*
+customers who were already valuable - the same confound the retargeting section is
+about. Weighting a budget by it inherits that confound, which makes the case for
+the experiment **larger**, not smaller.
+
+### Shapley - and the strongest form of the central finding
+
+Shapley has a formal **dummy-player axiom**: a channel that changes no
+coalition's conversion rate is guaranteed exactly zero credit. It's the only
+method here with that property, and a test proves it holds when a dummy channel
+is added *at random*.
+
+On the planted data, **Shapley gives retargeting 0.168**.
+
+The axiom isn't violated - it's satisfied, on a coalition function that is itself
+confounded. Retargeting genuinely *does* raise the observed conversion rate of
+every coalition it joins, because it joins the coalitions of customers who were
+going to convert. **Shapley answers its question correctly; the question is the
+wrong one.** No amount of methodological sophistication fixes data that contains
+no variation in whether the channel ran.
+
+Shapley is also the **most accurate** method (MAE 0.074) and the best-performing
+allocation among the heuristics (2.2% of conversions lost vs truth).
+
+### A correction the regenerated data forced
+
+The first pass said *"every method credits it, including markov_removal"*. After
+regeneration that became false - `markov_removal` reads **0.0000** for
+retargeting. It is not detecting the confound:
+
+```
+markov_removal   display 0.0000  social 0.0802  email 0.2810  paid_search 0.6389  retargeting 0.0000
+TRUTH            display 0.0889  social 0.2000  email 0.3111  paid_search 0.4000  retargeting 0.0000
+```
+
+It has collapsed the credit onto one channel and **zeroed display too**, whose
+true share is 0.089. That's a known brittleness of removal effects: a channel
+whose removal doesn't *disconnect* the graph scores zero regardless of
+contribution. It happens to be right about retargeting and wrong about display for
+the same reason. **A method that is accidentally right is not a method you can
+deploy, because you cannot tell in advance which of its zeros are correct.**
+
+`first_touch` also gives it little (0.016) - retargeting is a *closer*, so a
+first-touch model barely sees it. That's the mirror image of the position bias
+that makes last-touch over-credit it, not evidence that first-touch is
+unconfounded. Both facts are now asserted in the test, which previously claimed
+"every method" and was asserting an accident.
+
+### Time decay over days, and the memo
+
+Time decay now decays over **days** rather than journey position - the generator
+carries touch timestamps. Position decay treats a touch three steps back the same
+whether it was yesterday or three weeks ago, and those are different claims.
+
+The **executive memo** the spec asks for is written to `out/EXECUTIVE_MEMO.md`:
+recommendation, the geo-holdout pitch with its asymmetry argument (the experiment
+is cheapest in exactly the world where the channel is worthless), what the
+analysis is based on, an explicit *what we are not claiming* section, and the cost
+of doing nothing.
+
+## The other ~50% - what is still NOT here
+
 - **No dbt models, no marts, no orchestration.** The pipeline is three Python
   scripts.
-- **Journeys are not linked to customer ids** — the single biggest structural gap.
-  It means the CLV→attribution handoff is *reasoned about* and not computed: I
-  cannot weight the budget objective by the predicted CLV of the customers each
-  channel actually acquires, which is the whole point of joining the two.
-- **No touch timestamps**, so time-decay is over journey *position*, not days.
-- **No HDBSCAN**, no k selection procedure — k=5 is asserted, and only
-  stability and forward-separation are measured, not optimality.
-- **Markov is first-order only**; no higher-order paths, no Shapley comparison.
-- **No CAC or ROAS**, so the budget table is conversions, not profit.
+- **One journey per customer.** The link exists but the simulator gives each
+  customer a single journey, so it cannot model repeat acquisition or the same
+  customer being touched across campaigns.
+- **The CLV weighting is correlational** (see above) and inherits the confound
+  it is meant to help price.
+- **No HDBSCAN**, no k selection procedure - k=5 is asserted, and only stability
+  and forward-separation are measured, not optimality.
+- **Markov is first-order only**; no higher-order path models.
+- **Shapley is exact over 5 channels.** At 30 channels the 2^30 coalitions need
+  sampling, which is not implemented.
+- **No CAC or ROAS**, so the budget table is conversions and customer value, not
+  profit.
 - **The generator is the model.** BG/NBD is fitted to a BG/NBD process and the
   attribution simulator has no unobserved confounders beyond the one I planted —
   so every method here performs better than it would on real data.

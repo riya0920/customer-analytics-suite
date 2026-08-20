@@ -172,11 +172,29 @@ def test_planted_channel_has_zero_true_effect_but_is_credited():
     assert truth["channel_effects"][zc] == 0.0
 
     channels = list(truth["channel_effects"])
-    for name, fn in A.METHODS.items():
-        credit = fn(jd["journeys"], jd["conversions"], channels)
-        assert credit[zc] > 0.01, \
-            "%s credits the zero-effect channel %.4f; the confound is not landing" \
-            % (name, credit[zc])
+    credited = {name: fn(jd["journeys"], jd["conversions"], channels)[zc]
+                for name, fn in A.METHODS.items()}
+
+    # NOT "every method". markov_removal reads 0.0000 here -- and it also reads
+    # 0.0000 for display, whose true share is 0.089. Its zero is a removal-effect
+    # artifact (a channel whose removal does not disconnect the graph scores zero
+    # regardless of contribution), not a detection of the confound. An earlier
+    # version of this test asserted "every method credits it" and was asserting
+    # an accident; when the data was regenerated the accident moved.
+    # Two methods give it little, for two DIFFERENT and explicable reasons:
+    #   markov_removal  -- removal-effect artifact (see above)
+    #   first_touch     -- retargeting is a CLOSER, so a first-touch model
+    #                      almost never sees it. That is the mirror image of the
+    #                      position bias that makes last-touch over-credit it,
+    #                      and it is a property of WHERE the channel fires, not
+    #                      evidence that first-touch is unconfounded.
+    material = [n for n, v in credited.items() if v > 0.05]
+    assert len(material) >= 3, credited
+    assert credited["last_touch"] > 0.20, credited
+    assert credited["shapley"] > 0.05, \
+        "even Shapley, which has a dummy-player axiom, must credit it here"
+    assert credited["first_touch"] < credited["last_touch"], \
+        "a closing channel must be under-credited by first-touch"
 
 
 def test_budget_allocation_is_exhaustive():

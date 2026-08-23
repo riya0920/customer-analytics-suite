@@ -1,23 +1,23 @@
-8000 customers, 90092 transactions. Calibration 0-511 days, holdout 511-730.
-Calibration repeat purchases: mean 8.38, 1507 customers with zero.
+8000 customers, 89540 transactions. Calibration 0-511 days, holdout 511-730.
+Calibration repeat purchases: mean 8.29, 1489 customers with zero.
 
 ==============================================================================
 1. SEGMENTATION -- AND WHETHER THE SEGMENTS PREDICT ANYTHING
 ==============================================================================
 Bootstrap stability (adjusted Rand index over 20 resamples):
-  mean 0.939   min 0.895   max 0.973
+  mean 0.927   min 0.506   max 0.978
 
 FORWARD TEST -- segment membership at time T vs behaviour in T+1:
             n  cal_frequency  cal_monetary  recency  churn_rate_T1  holdout_orders  holdout_spend
 segment                                                                                          
-0        1357          3.103        43.394  404.361          0.913           0.189         11.426
-1         790         36.072        70.686   67.344          0.367           8.368        600.039
-2         548          0.684        20.074   94.769          0.378           1.036         68.254
-3        3083          8.726        81.011  114.614          0.413           2.442        184.270
-4        2222          3.162        41.167  426.337          0.946           0.109          6.967
+0         605         39.625        71.583   55.281          0.309          10.251        724.536
+1        1364          2.983        45.716  410.265          0.915           0.178         11.419
+2         609          0.898        23.300   95.213          0.419           1.003         65.321
+3        2280          3.170        41.844  426.745          0.952           0.097          5.602
+4        3142          9.700        79.438  108.726          0.411           2.570        191.443
 
-Churn-rate spread across segments: 36.7% to 94.6% (57.9 points).
-Holdout spend spread: $7 to $600.
+Churn-rate spread across segments: 30.9% to 95.2% (64.3 points).
+Holdout spend spread: $6 to $725.
 
 THIS IS THE VALIDATION THAT IS ALWAYS MISSING. Segments that do not
 separate FUTURE behaviour are decoration -- you can always partition a
@@ -25,7 +25,7 @@ cloud of points and give the parts names. The question is whether
 membership at time T tells you anything about T+1, and the only way to
 answer it is to hold out time and look.
 
-OPERATIONALLY, what to do with a 58-point churn spread: it is a
+OPERATIONALLY, what to do with a 64-point churn spread: it is a
 targeting prior, not a playbook. It says where retention budget has the
 most headroom, and it says nothing about what intervention works -- that
 needs a test per segment. And note the reflexive problem: acting on a
@@ -35,29 +35,29 @@ baselines that stop being true the moment anyone uses them.
 ==============================================================================
 2. CLV -- BG/NBD + GAMMA-GAMMA, VALIDATED ON A TEMPORAL HOLDOUT
 ==============================================================================
-BG/NBD fitted: r=0.6071 alpha=15.5045 a=1.2730 b=15.1220
-Gamma-Gamma fitted: p=2.9764 q=6.5189 v=135.0321
+BG/NBD fitted: r=0.6118 alpha=15.7084 a=1.1780 b=13.3750
+Gamma-Gamma fitted: p=3.0065 q=6.6171 v=135.1787
 
 Gamma-Gamma assumes monetary value is independent of frequency.
-Measured correlation(frequency, mean order value) = +0.0035
+Measured correlation(frequency, mean order value) = +0.0222
   -> assumption holds well enough
 
 DECILE CALIBRATION on the temporal holdout:
           n  predicted_clv  actual_clv  predicted_orders  actual_orders  ratio
 decile                                                                        
-0       800           0.00        0.00              0.00           0.00    NaN
-1       800           0.42        0.27              0.01           0.01  1.556
-2       800           4.16        3.03              0.06           0.04  1.373
-3       800          15.93        5.54              0.23           0.08  2.875
-4       800          20.74       11.29              0.29           0.17  1.837
-5       800          43.28       51.75              0.67           0.82  0.836
-6       800          89.75       84.49              1.47           1.38  1.062
-7       800         169.14      164.04              2.73           2.70  1.031
-8       800         311.56      263.24              4.66           3.97  1.184
-9       800         791.40      804.50              9.75           9.85  0.984
+0       800           0.01        0.00              0.00           0.00    NaN
+1       800           0.39        0.00              0.01           0.00    NaN
+2       800           3.80        2.02              0.06           0.03  1.881
+3       800          15.82        3.87              0.22           0.07  4.088
+4       800          20.53       14.06              0.29           0.21  1.460
+5       800          42.87       45.10              0.67           0.72  0.951
+6       800          90.16       86.05              1.49           1.40  1.048
+7       800         165.60      155.72              2.69           2.50  1.063
+8       800         307.27      262.05              4.63           4.08  1.173
+9       800         803.12      816.13              9.97          10.18  0.984
 
-Spearman rank correlation (predicted vs actual holdout spend): 0.7385
-Pearson correlation on individuals:                            0.7987
+Spearman rank correlation (predicted vs actual holdout spend): 0.7366
+Pearson correlation on individuals:                            0.8227
 
 THE AGGREGATE-VS-INDIVIDUAL NOTE, AND THE CAVEAT ON THE CAVEAT.
 
@@ -66,7 +66,7 @@ MISPREDICTS individuals -- use it to size a segment, never to decide what
 one customer is worth. That warning is correct on real data.
 
 It is NOT what this run shows. The decile table tracks closely AND the
-individual correlation is 0.80, which is high. Reporting that as evidence
+individual correlation is 0.82, which is high. Reporting that as evidence
 that the model predicts individuals well would be the single most
 misleading thing in this project, because the reason is circular: the
 generator in src/generate.py draws inter-purchase times from an
@@ -84,8 +84,8 @@ survives. The honest use of this build is the harness, not the number.
 PROBABILISTIC MODEL vs ML CHALLENGER (same holdout, 30% of customers):
                        spearman        mae
 model                                     
-BG/NBD + Gamma-Gamma      0.739     88.640
-GBM challenger            0.714     95.343
+BG/NBD + Gamma-Gamma      0.746     91.936
+GBM challenger            0.729     97.479
 
 Better ranking: BG/NBD + Gamma-Gamma.
 RECOMMENDATION: the probabilistic model, and not because it won on
@@ -99,35 +99,35 @@ whatever selection is in the label window.
 HANDOFF 1 -- CLV wired back into segments:
          size    mean        sum  share_of_value  share_of_customers
 segment                                                             
-0        1357   15.62   21194.80            0.02                0.17
-1         790  606.59  479206.42            0.41                0.10
-2         548  161.11   88289.54            0.08                0.07
-3        3083  176.63  544553.02            0.47                0.39
-4        2222   10.74   23864.02            0.02                0.28
+0         605  715.55  432907.49            0.37                0.08
+1        1364   14.18   19341.47            0.02                0.17
+2         609  147.40   89764.75            0.08                0.08
+3        2280   10.67   24335.80            0.02                0.28
+4        3142  188.83  593309.09            0.51                0.39
 
-Top 20% of customers hold 76.3% of predicted value.
+Top 20% of customers hold 76.6% of predicted value.
 
 ==============================================================================
 3. ATTRIBUTION -- SCORED AGAINST KNOWN TRUTH
 ==============================================================================
 Credited share of conversions by channel (rows sum to 1):
-                 display    social     email  paid_search  retargeting      _mae
-method                                                                          
-** TRUTH **       0.0889    0.2000    0.3111       0.4000       0.0000    0.0000
-last_touch        0.0238    0.0411    0.2283       0.3492       0.3576    0.1430
-first_touch       0.6756    0.2333    0.0441       0.0307       0.0163    0.2545
-linear            0.2701    0.2083    0.2021       0.1722       0.1474    0.1348
-time_decay        0.1607    0.1670    0.2445       0.2275       0.2004    0.1089
-markov_removal    0.0000    0.0802    0.2810       0.6389       0.0000    0.0955
-shapley           0.1061    0.1866    0.2444       0.2946       0.1684    0.0742
+                 display    social     email  paid_search  affiliate  influencer   podcast       ctv      push       sms  shopping_feed  retargeting      _mae
+method                                                                                                                                                        
+** TRUTH **       0.0457    0.1027    0.1598       0.2055     0.0685      0.0799    0.0571    0.0639    0.0411    0.0502         0.1256       0.0000    0.0000
+last_touch        0.0103    0.0167    0.1173       0.2523     0.0428      0.0089    0.0054    0.0044    0.0805    0.0921         0.1698       0.1996    0.0620
+first_touch       0.3271    0.1692    0.0569       0.0294     0.0455      0.1052    0.0970    0.0978    0.0215    0.0191         0.0151       0.0163    0.0772
+linear            0.1138    0.1055    0.1369       0.1350     0.0773      0.0569    0.0396    0.0370    0.0651    0.0631         0.0800       0.0900    0.0344
+time_decay        0.0629    0.0751    0.1504       0.1722     0.0777      0.0389    0.0244    0.0217    0.0764    0.0763         0.1049       0.1190    0.0345
+markov_removal    0.0000    0.0101    0.0000       0.6472     0.0038      0.0000    0.0000    0.0000    0.0056    0.0000         0.2167       0.1166    0.1082
+shapley           0.0296    0.0917    0.1200       0.1501     0.0854      0.0695    0.0569    0.0471    0.0706    0.0727         0.0999       0.1065    0.0292
 
 Mean absolute error against truth, ranked:
-  shapley            0.0742
-  markov_removal     0.0955
-  time_decay         0.1089
-  linear             0.1348
-  last_touch         0.1430
-  first_touch        0.2545
+  shapley            0.0292
+  linear             0.0344
+  time_decay         0.0345
+  last_touch         0.0620
+  first_touch        0.0772
+  markov_removal     0.1082
 
 ==============================================================================
 4. THE PLANTED CHANNEL -- ATTRIBUTION IS NOT INCREMENTALITY
@@ -137,40 +137,22 @@ users who were already likely to convert -- which is what a real
 retargeting programme does: it follows intent, it does not create it.
 
 Naive read of the data:
-  conversion rate WITH retargeting    : 0.2738
-  conversion rate WITHOUT retargeting : 0.2311
-  apparent 'lift'              : +0.0428  (TRUE lift: 0.0000)
+  conversion rate WITH retargeting    : 0.3696
+  conversion rate WITHOUT retargeting : 0.3049
+  apparent 'lift'              : +0.0647  (TRUE lift: 0.0000)
 
 What each attribution method credits it:
-  last_touch         0.3576   (truth 0.0000)
+  last_touch         0.1996   (truth 0.0000)
   first_touch        0.0163   (truth 0.0000)
-  linear             0.1474   (truth 0.0000)
-  time_decay         0.2004   (truth 0.0000)
-  markov_removal     0.0000   (truth 0.0000)
-  shapley            0.1684   (truth 0.0000)
+  linear             0.0900   (truth 0.0000)
+  time_decay         0.1190   (truth 0.0000)
+  markov_removal     0.1166   (truth 0.0000)
+  shapley            0.1065   (truth 0.0000)
 
-4 of 6 methods give it a material share of the credit.
-
-ONE METHOD GIVES IT ZERO, AND IT IS NOT BECAUSE IT FOUND THE
-CONFOUND. markov_removal reads 0.0000 -- and it also reads 0.0000 for DISPLAY,
-whose true share is 0.0889. Look at its whole row:
-
-    markov_removal   display 0.0000  social 0.0802  email 0.2810  paid_search 0.6389  retargeting 0.0000
-    TRUTH            display 0.0889  social 0.2000  email 0.3111  paid_search 0.4000  retargeting 0.0000
-
-It has collapsed almost all the credit onto one channel and zeroed
-two others. That is a known brittleness of removal effects: a
-channel whose removal does not DISCONNECT the graph -- because the
-remaining transitions still reach conversion -- gets a removal
-effect of zero regardless of how much it contributed. It happens to
-be right about retargeting and it is wrong about display for the
-same reason, so the zero is an artifact and not a detection.
-
-A method that is accidentally right is not a method you can deploy,
-because you cannot tell in advance which of its zeros are correct.
+5 of 6 methods give it a material share of the credit.
 
 The other methods behave exactly as the confound predicts. Last-touch
-hands it 36% of ALL credit, because retargeting is a CLOSER -- it
+hands it 20% of ALL credit, because retargeting is a CLOSER -- it
 fires late in journeys that were already going to convert, so it is
 sitting in the last position of a great many converting paths.
 
@@ -180,7 +162,7 @@ channel that changes no coalition's conversion rate is guaranteed
 exactly zero credit. It is the only method here with that property, and
 a test proves it holds when the dummy channel is added AT RANDOM.
 
-On this data Shapley gives retargeting 0.1684.
+On this data Shapley gives retargeting 0.1065.
 
 The axiom is not violated -- it is satisfied, on a coalition function
 that is itself confounded. Retargeting genuinely DOES raise the observed
@@ -216,16 +198,16 @@ method's credited share,
 then evaluated in the TRUE world (concave reach, saturation 0.6):
                   conversions  spend_on_zero_effect  conversions_lost_vs_truth       pct_lost
 allocation                                                                                   
-last_touch            2059.38                536.40                     106.34           4.91
-first_touch           1941.24                 24.52                     224.47          10.36
-linear                2052.28                221.17                     113.43           5.24
-time_decay            2083.62                300.60                      82.09           3.79
-markov_removal        2098.39                  0.00                      67.32           3.11
-shapley               2117.81                252.56                      47.90           2.21
-TRUTH                 2165.71                  0.00                       0.00           0.00
+last_touch            2415.94                299.34                     358.36          12.92
+first_touch           2534.90                 24.44                     239.40           8.63
+linear                2668.89                134.94                     105.41           3.80
+time_decay            2676.86                178.46                      97.44           3.51
+markov_removal        1637.58                174.95                    1136.72          40.97
+shapley               2722.59                159.69                      51.71           1.86
+TRUTH                 2774.30                  0.00                       0.00           0.00
 
 THE HEADLINE FOR THE MEMO: allocating on last-touch instead of truth
-costs 106 conversions (4.9% of achievable) and puts $536 -- 35.8% of
+costs 358 conversions (12.9% of achievable) and puts $299 -- 20.0% of
 the budget -- into a channel that causes nothing.
 
 AND A RESULT THAT COMPLICATES THE OBVIOUS STORY. Rank the methods by
@@ -233,17 +215,17 @@ attribution error (section 3) and by budget outcome (here) and the
 orders DISAGREE:
 
   method             MAE vs truth conversions lost
-  shapley                  0.0742           47.9
-  markov_removal           0.0955           67.3
-  time_decay               0.1089           82.1
-  linear                   0.1348          113.4
-  last_touch               0.1430          106.3
-  first_touch              0.2545          224.5
+  shapley                  0.0292           51.7
+  linear                   0.0344          105.4
+  time_decay               0.0345           97.4
+  last_touch               0.0620          358.4
+  first_touch              0.0772          239.4
+  markov_removal           0.1082         1136.7
 
 
 HANDOFF 2 -- why CLV belongs in this decision: the allocation above
 maximises CONVERSIONS, and conversions are not equally valuable. Top
-versus bottom CLV decile on holdout spend is $804 against $0. A
+versus bottom CLV decile on holdout spend is $816 against $0. A
 channel that acquires cheap, low-value customers can win a
 conversion-based allocation and lose a value-based one. Weighting the
 objective by predicted CLV per acquired customer is the join between
@@ -261,32 +243,39 @@ whole point of computing CLV in the same project. The link exists now.
 
 Predicted CLV of the customers each channel touched on the way to a
 conversion:
-             converters_touched       mean_clv     median_clv      total_clv      clv_index
-channel                                                                                    
-display                    1534         150.96          28.86      231568.22           1.04
-social                     1341         147.20          29.84      197398.33           1.01
-email                      1324         141.43          25.04      187253.65           0.97
-paid_search                1181         142.98          30.67      168857.47           0.98
-retargeting                1091         143.37          32.28      156416.42           0.99
+               converters_touched       mean_clv     median_clv      total_clv      clv_index
+channel                                                                                      
+display                      2231         149.53          30.95      333601.51           1.02
+social                       2087         145.91          29.73      304509.51           0.99
+email                        2533         149.93          26.53      379777.64           1.02
+paid_search                  2520         150.15          26.64      378379.39           1.02
+affiliate                    1636         147.86          26.05      241891.19           1.01
+influencer                   1241         137.96          24.49      171205.84           0.94
+podcast                       913         139.50          24.50      127364.70           0.95
+ctv                           860         143.53          27.03      123432.96           0.98
+push                         1388         139.47          23.27      193581.40           0.95
+sms                          1379         158.99          28.33      219249.35           1.08
+shopping_feed                1700         149.95          34.60      254914.77           1.02
+retargeting                  1856         151.48          27.80      281154.59           1.03
 
 `clv_index` is the channel's mean acquired-customer value relative to
 the portfolio average. A channel above 1.0 brings better customers than
 the average channel does, and a conversion-maximising budget cannot see
 that at all.
 
-Spread across channels: 0.066 (best display at 1.040, worst email at 0.974).
+Spread across channels: 0.143 (best sms at 1.081, worst influencer at 0.938).
 
 The same allocations, scored two ways:
                       conversions  customer_value  conv_lost_pct  value_lost_pct
 allocation                                                                      
-last_touch                2059.38       297789.26           4.91            4.97
-first_touch               1941.24       281253.18          10.36           10.24
-linear                    2052.28       297129.43           5.24            5.18
-time_decay                2083.62       301610.79           3.79            3.75
-markov_removal            2098.39       302445.09           3.11            3.48
-shapley                   2117.81       306498.82           2.21            2.19
-TRUTH                     2165.71       313347.61           0.00            0.00
-CLV-WEIGHTED TRUTH        2164.43       313164.87           0.06            0.06
+last_touch                2415.94       358780.02          12.92           12.55
+first_touch               2534.90       373481.51           8.63            8.97
+linear                    2668.89       394822.57           3.80            3.77
+time_decay                2676.86       396355.55           3.51            3.39
+markov_removal            1637.58       241270.57          40.97           41.19
+shapley                   2722.59       402613.61           1.86            1.87
+TRUTH                     2774.30       410281.41           0.00            0.00
+CLV-WEIGHTED TRUTH        2772.17       410021.86           0.08            0.06
 
 Best on CONVERSIONS: TRUTH.  Best on CUSTOMER VALUE: TRUTH.
 
@@ -315,8 +304,8 @@ than replacing it.
 
   RECOMMENDATION
 
-  1. Stop allocating on last-touch. On our data it sends 35.8% of the
-     budget -- about $536 of $1500 -- to retargeting, and our best
+  1. Stop allocating on last-touch. On our data it sends 20.0% of the
+     budget -- about $299 of $1500 -- to retargeting, and our best
      evidence is that retargeting causes approximately none of the
      conversions it is credited with.
 
@@ -327,7 +316,7 @@ than replacing it.
      argument: the experiment is cheapest in exactly the world where the
      channel is worthless.
 
-  3. Reallocate toward paid search and email, which carry 71% of the
+  3. Reallocate toward paid search and email, which carry 37% of the
      measurable effect between them.
 
   WHAT THIS IS BASED ON
@@ -337,14 +326,14 @@ than replacing it.
   conditions:
 
     - Every method credits a channel we know causes nothing. Last-touch
-      gives it 36% of all credit; even Shapley, which is designed to
-      give a useless channel exactly zero, gives it 17%.
+      gives it 20% of all credit; even Shapley, which is designed to
+      give a useless channel exactly zero, gives it 11%.
     - The reason is not the estimators. It is that retargeting is TARGETED
       at customers who were already going to buy, so it correlates with
       conversion without causing it. No amount of modelling separates
       correlation from causation in data that contains no experiment.
-    - Allocating on last-touch instead of truth costs 106 conversions
-      (4.9% of achievable) on a $1500 budget.
+    - Allocating on last-touch instead of truth costs 358 conversions
+      (12.9% of achievable) on a $1500 budget.
 
   WHAT WE ARE NOT CLAIMING
 
@@ -359,11 +348,11 @@ than replacing it.
 
   COST OF DOING NOTHING
 
-    Roughly $6437 a year of budget flowing to a channel whose effect we
+    Roughly $3592 a year of budget flowing to a channel whose effect we
     have never measured, and a reported ROAS that will keep telling us it
     is working, because a channel that follows intent always looks good to
     a correlational metric.
 
 -> out/EXECUTIVE_MEMO.md
 
-(39s)
+(68s)

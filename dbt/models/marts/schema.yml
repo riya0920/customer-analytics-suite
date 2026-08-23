@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: customer_rfm
+    description: One row per customer over the calibration window.
+    columns:
+      - name: customer_id
+        tests: [unique, not_null]
+      - name: frequency
+        tests: [not_null]
+
+  - name: customer_holdout
+    description: >
+      Post-cutoff behaviour. Deliberately a SEPARATE model from customer_rfm so
+      that a feature-building query cannot select a label by accident.
+    columns:
+      - name: customer_id
+        tests: [unique, not_null]
+
+  - name: channel_daily
+    description: >
+      Reach, not attribution. A conversion is counted for every channel that
+      touched the journey, so this column sums to MORE than total conversions.
+    columns:
+      - name: channel
+        tests: [not_null]
+      - name: touches
+        tests: [not_null]

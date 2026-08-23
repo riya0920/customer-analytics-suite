@@ -1,0 +1,312 @@
+==============================================================================
+DATA-1 COMPLETION PASS -- 15238 journeys, 12 channels, 8000 customers
+==============================================================================
+
+==============================================================================
+A. A PIPELINE, NOT THREE SCRIPTS
+==============================================================================
+  ok       land_raw       0.7s
+  ok       dbt_build      10.9s
+  ok       read_marts     0.0s
+
+  dbt: PASS=15 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=15
+  marts: customer_rfm 7894 rows, customer_holdout 2847 rows
+
+WHAT DBT BUYS HERE, AND IT IS NOT SQL FOR ITS OWN SAKE:
+
+  ONE definition of the calibration cutoff. It was retyped in the
+  generator and again in the analysis; it is now a dbt var that every
+  model referencing the boundary reads. A cutoff that lives in four
+  files will eventually differ between two of them, and the resulting
+  leakage is invisible in each query on its own.
+
+  A LEAKAGE TEST THAT RUNS. `customer_holdout` is a separate model from
+  `customer_rfm`, and a singular test FAILS THE BUILD if any holdout row
+  falls on or before the cutoff. That was previously a convention, and
+  a convention is a thing people follow until a deadline.
+
+  A test that asserts a table is what it CLAIMS to be. `channel_daily`
+  credits every channel that touched a converting journey, so its
+  conversion column must sum to MORE than the true conversion count. A
+  test asserts exactly that -- if it ever stops holding, someone has
+  quietly turned a reach table into an attribution table, which is the
+  most common analytics error in this domain.
+
+  The orchestrator is 120 lines and not Airflow, on purpose. What a
+  scheduler is FOR at this size is dependencies, idempotency and
+  failure semantics -- a task whose upstream failed is marked skipped
+  and never runs on stale inputs. Installing Airflow would demonstrate
+  that Airflow installs.
+
+  HONEST LIMIT: DuckDB. The models, the graph and the tests are real
+  dbt and would run on Snowflake with a profile change. What is absent
+  is everything about a warehouse that is hard -- concurrency, cost
+  governance, permissions, incremental strategies at scale.
+
+==============================================================================
+B. CHOOSING k, AND WHAT HAPPENS WHEN YOU STOP CHOOSING IT
+==============================================================================
+ k   silhouette  calinski_harabasz  davies_bouldin     mean_ari  eta_squared  adjusted_eta_squared
+ 2       0.2052          2200.2516          1.7277       0.9283       0.1919                0.1918
+ 3       0.2133          2098.8789          1.6356       0.9535       0.2198                0.2196
+ 4       0.2020          1942.2003          1.4914       0.9170       0.2593                0.2591
+ 5       0.1867          1782.7866          1.5528       0.7298       0.2997                0.2994
+ 6       0.1868          1689.4387          1.4484       0.6992       0.3113                0.3108
+ 7       0.1845          1613.3548          1.4138       0.6875       0.3094                0.3089
+ 8       0.1871          1550.2991          1.3737       0.7325       0.3070                0.3064
+
+  silhouette (max)                     k = 3
+  calinski-harabasz (max)              k = 2
+  davies-bouldin (min)                 k = 8
+  elbow (inertia knee)                 k = 4
+  stability (max ARI)                  k = 3
+  forward separation (max adj eta^2)   k = 6
+
+SIX CRITERIA, 5 DIFFERENT ANSWERS. That is the finding, and averaging
+them would be the worst possible response to it.
+
+  They disagree for principled reasons. Silhouette rewards compact
+  spheres. Stability rewards coarse partitions -- k=2 is stable on
+  almost any data because there is little to disagree about. Forward
+  separation rewards whatever correlates with the outcome.
+
+  The one that should decide is FORWARD SEPARATION, because it is the
+  only criterion tied to what the segments are FOR. The rest measure
+  whether the geometry is tidy, which is a question nobody in the
+  business asked. And it is reported ADJUSTED, because raw eta^2 rises
+  with k mechanically and an unadjusted table always recommends the
+  largest k on offer.
+
+HDBSCAN, which does not take k at all -- swept over min_cluster_size:
+
+  min_cluster_size     clusters  noise share largest cluster
+  25                          8       0.8484            363
+  50                          2       0.5562           3229
+  100                         2       0.6905           2328
+  200                         0       1.0000              0
+  400                         0       1.0000              0
+
+  Lowest noise share: 0.5562 at min_cluster_size=50.
+
+  HDBSCAN LEAVES THE MAJORITY UNASSIGNED AT EVERY SETTING TRIED, and
+  that is a statement about this customer base rather than about the
+  algorithm: RFM features on a retail panel are one diffuse cloud
+  with a thin high-value tail, not a set of dense islands. There is
+  no density structure to find, so a density method correctly finds
+  none.
+
+  Which makes it completely unusable for a campaign. 'Unassigned' is
+  not a segment anyone can target, and a marketing team handed a
+  clustering that covers 44% of customers will go back to k-means
+  by the end of the week.
+
+  THE COMPARISON IS NOT 'WHICH IS BETTER'. k-means forces a partition
+  and is therefore always actionable and sometimes fictional -- it will
+  cheerfully cut a single cloud into five wedges and name them. HDBSCAN
+  refuses to invent structure and is therefore sometimes honest and
+  often unusable. Which failure mode you prefer is a business decision,
+  and the useful output of running both is knowing WHICH ONE you are
+  buying: here, k-means is inventing the segments, and that is worth
+  knowing before anyone builds a campaign on them.
+
+==============================================================================
+C. SHAPLEY AT SCALE -- SAMPLED, AND SCORED AGAINST EXACT
+==============================================================================
+Exact Shapley over 12 channels = 4096 coalitions.
+
+ n_perms  mean_abs_error  max_abs_error
+      25         0.07125        0.18578
+      50         0.07253        0.21836
+     100         0.07303        0.16348
+     200         0.06445        0.10646
+     400         0.05955        0.13349
+     800         0.05723        0.11743
+
+  32x more permutations should cut Monte-Carlo error by 5.66x if the
+  estimator were merely noisy. Measured: 1.25x.
+
+IT DOES NOT CONVERGE, AND THAT IS THE RESULT OF RUNNING THE CHECK.
+
+  The error falls a little and then plateaus around 0.057. More samples
+  do not help, which means the gap is BIAS rather than variance -- the
+  sampled estimator is converging to a different number than the exact
+  one, not noisily to the same number.
+
+  The cause is visible in the coalition count below: only 2519 of the 4096
+  possible coalitions were ever observed. A permutation walks the
+  lattice one channel at a time, and when the next coalition was never
+  seen it cannot advance -- so permutations STALL, and they stall more
+  often for channels that appear in rare combinations. The exact
+  estimator has the same missing data but reweights by the coalitions it
+  DID use; the sampler cannot, because it never learns which ones it
+  skipped.
+
+  So the two are not the same estimator at different sample sizes. They
+  are different estimators, and the honest conclusion is that sampled
+  Shapley on a SPARSE coalition lattice needs a different value
+  function -- marginal contributions estimated per journey rather than
+  per observed coalition -- not more permutations.
+
+  This is exactly the check the usual justification for sampling skips.
+  'The exact version is intractable' is true at 30 channels and is also
+  the regime where nobody can discover this. Twelve channels is the
+  largest scale at which both answers exist, which is the only reason
+  the discrepancy is visible at all.
+
+      channel     exact   sampled        se     truth
+  paid_search    0.1501    0.2433    0.0163    0.2055
+        email    0.1200    0.1381    0.0168    0.1598
+shopping_feed    0.0999    0.2417    0.0144    0.1256
+       social    0.0917    0.0806    0.0158    0.1027
+   influencer    0.0695    0.0000    0.0142    0.0799
+    affiliate    0.0854    0.0428    0.0148    0.0685
+          ctv    0.0471    0.0000    0.0122    0.0639
+      podcast    0.0569    0.0543    0.0128    0.0571
+          sms    0.0727    0.0348    0.0157    0.0502
+      display    0.0296    0.0058    0.0161    0.0457
+         push    0.0706    0.0331    0.0151    0.0411
+  retargeting    0.1065    0.1257    0.0158    0.0000
+
+  Observed coalitions: 2519 of 4096 possible. The estimator walks only the
+  observed lattice -- treating an unobserved coalition as rate ZERO
+  injects large spurious negative marginals which normalisation then
+  amplifies into confident nonsense. That bug once gave two
+  interchangeable channels 1.0 and 0.0.
+
+==============================================================================
+D. HIGHER-ORDER MARKOV -- WHAT A FIRST-ORDER CHAIN THROWS AWAY
+==============================================================================
+ order  n_states  thin_state_share  base_conversion  max_abs_removal_effect  mae_vs_truth  zero_credit_channels
+     1        13           0.00000          0.32611                 0.00009       0.08333                    12
+     2       152           0.09211          0.32621                 0.00001       0.08333                    12
+     3      1354           0.28656          0.32622                 0.00000       0.08333                    12
+
+  A first-order chain's state is the LAST TOUCH, so
+  `display -> email -> convert` and `paid_search -> email -> convert`
+  are indistinguishable once you are at `email`. That discards the path,
+  which is the one thing a multi-touch model exists to use. Order 2 and
+  3 can represent it, at the cost of state explosion: 13 states at order
+  1, 1354 at order 3, with the share of states seen fewer than ten times
+  going 0.000 -> 0.287.
+
+BUT THE ORDER IS NOT THE INTERESTING RESULT HERE. EVERY CHANNEL GETS
+EXACTLY ZERO CREDIT AT EVERY ORDER, and the largest removal effect
+anywhere in the table is 0.000089.
+
+  That is not a bug, and it is the most useful thing in this section.
+  This implementation removes a channel by DELETING THE TOUCH FROM
+  THE JOURNEYS and re-estimating -- the counterfactual a marketer
+  means by 'what if we turned it off'. Done that way the conversion
+  probability does not move, because in observational path data the
+  outcome is attached to the JOURNEY, not to the path: a journey that
+  converted still converted with one touch removed.
+
+  The textbook removal effect avoids that by deleting the NODE FROM
+  THE GRAPH and renormalising, which strands the removed node's
+  inbound probability mass into the null state. That produces a
+  satisfying non-zero number -- `markov_removal` in section F scores
+  0.1082 MAE with it -- and the number comes from the graph
+  representation rather than from anything about the channel.
+
+  So the two implementations disagree completely, and the one that
+  returns zeros is the one being honest. 'Remove the channel from
+  the graph' was never a causal statement; this is what it looks
+  like when you write down the counterfactual it claims to compute
+  and then actually compute it.
+
+  This project has been caught by the same brittleness before, in
+  its milder form: markov once read 0.0000 for the planted channel
+  AND for a channel with a true share of 0.089, and the accidental
+  correctness of the first was reported as a detection.
+
+==============================================================================
+E. CAC AND ROAS -- AND WHY THE CHANNEL-LEVEL ONES DO NOT ADD UP
+==============================================================================
+      channel  impressions        spend  conversions_touched          cac  revenue_touched         roas       profit
+  paid_search         8528      2984.80                 2520         1.18        357416.91       119.75    354432.11
+shopping_feed         5441       979.38                 1700         0.58        233781.29       238.70    232801.91
+          ctv         2886       606.06                  860         0.70        116324.69       191.94    115718.63
+   influencer         4148       580.72                 1241         0.47        153901.40       265.02    153320.68
+    affiliate         5383       484.47                 1636         0.30        224083.34       462.53    223598.87
+  retargeting         5970       298.50                 1856         0.16        257206.05       861.66    256907.55
+      podcast         2994       209.58                  913         0.23        116974.57       558.14    116764.99
+       social         7825        93.90                 2087         0.04        276421.28      2943.78    276327.38
+      display         9287        37.15                 2231         0.02        307086.02      8266.56    307048.87
+          sms         4566        27.40                 1379         0.02        201281.18      7347.10    201253.78
+        email         9078        18.16                 2533         0.01        341832.22     18827.51    341814.06
+         push         4603         4.60                 1388         0.00        176425.95     38328.47    176421.35
+
+Observational vs INCREMENTAL, the number every deck is approximating:
+
+      channel          spend  observational_cac  incremental_cac  observational_roas  incremental_roas
+      display          37.15               0.02             0.16             8266.56           2378.00
+       social          93.90               0.04             0.18             2943.78           2116.72
+        email          18.16               0.01             0.02            18827.51          17029.21
+  paid_search        2984.80               1.18             2.92              119.75            133.18
+    affiliate         484.47               0.30             1.42              462.53            273.51
+   influencer         580.72               0.47             1.46              265.02            266.21
+      podcast         209.58               0.23             0.74              558.14            526.87
+          ctv         606.06               0.70             1.91              191.94            204.06
+         push           4.60               0.00             0.02            38328.47          17272.22
+          sms          27.40               0.02             0.11             7347.10           3546.93
+shopping_feed         979.38               0.58             1.57              238.70            248.04
+  retargeting         298.50               0.16              inf              861.66              0.00
+
+  Blended CAC (total spend / total conversions): $1.27
+  Sum of channel conversions_touched: 20344 against 4971 actual conversions.
+
+  THE CHANNEL CACs DO NOT ADD UP, AND THAT IS NOT A BUG IN THIS TABLE.
+  Observational CAC divides spend by conversions the channel TOUCHED,
+  so every conversion touched by three channels is counted three times.
+  It is what every channel-level CAC in every marketing deck is, and it
+  is why the numbers never reconcile to the blended figure.
+
+  Look at retargeting: observational CAC $0.16, ROAS 861.66 -- a channel that
+  causes NOTHING has a defensible-looking CAC and would survive any
+  efficiency review. Its incremental CAC is infinite, because its
+  incremental conversions are zero.
+
+  That gap is the entire business case for the experiment, and it is
+  now denominated in dollars rather than in credit shares.
+
+==============================================================================
+F. THE UNOBSERVED CONFOUNDER -- WHY NO METHOD HERE CAN WIN
+==============================================================================
+The previous README ended with: 'the attribution simulator has no
+unobserved confounders beyond the one I planted -- so every method here
+performs better than it would on real data.' That is now false by
+construction.
+
+  `in_market` is a latent state affecting 32% of customers. It raises the
+  probability of conversion by 0.160 AND multiplies exposure to CLOSING
+  channels by 2.4x. It is never written to disk.
+
+  The distinction from the planted retargeting confound matters. That
+  one is observable in principle -- propensity is a customer attribute
+  a good model could proxy. This one is not, and no attribution system
+  in the world can condition on it: it is the thing the customer knows
+  and the ad server does not.
+
+         method  mae_vs_truth  credit_to_zero_effect_channel
+        shapley        0.0292                         0.1065
+         linear        0.0344                         0.0900
+     time_decay        0.0348                         0.1243
+shapley_sampled        0.0466                         0.1257
+     last_touch        0.0620                         0.1996
+    first_touch        0.0772                         0.0163
+ markov_removal        0.1082                         0.1166
+
+  EVERY method credits the zero-effect channel, and every method has
+  non-trivial error against truth. Best MAE is 0.0292 by shapley.
+
+  The useful reading is not the ranking. It is that the ranking is now
+  a comparison of how each method fails, rather than a search for the
+  one that succeeds -- because with an unobserved common cause of
+  exposure and outcome, none of them CAN succeed. That is a theorem,
+  not a limitation of these implementations.
+
+  Which is why the geo holdout in the main report is not a nice-to-have
+  and not a validation step. It is the only instrument that answers the
+  question at all, and its cost -- foregone spend in control markets --
+  is zero in exactly the world where the channel is worthless.
+

@@ -1,0 +1,11 @@
+# DuckDB rather than a warehouse, and that is the whole substitution: the SQL,
+# the model graph, the tests and the lineage are real dbt; only the engine is
+# embedded. Everything here would run on Snowflake or BigQuery with a profile
+# change and no model edits.
+retail_customer_analytics:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ../data/warehouse.duckdb
+      threads: 4

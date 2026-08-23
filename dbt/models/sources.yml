@@ -1,0 +1,12 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: main
+    description: >
+      Landed by src/warehouse.py from the generator's own artifacts. Loading is a
+      Python step on purpose -- dbt is a transformation tool and treating it as an
+      ingestion tool is how a T becomes an ELT with no L anyone can point at.
+    tables:
+      - name: transactions
+      - name: touches

@@ -1,265 +1,241 @@
 # DATA-1 — Customer Analytics: Segmentation → CLV → Attribution
 
-**Roughly 50% of the spec.** Three questions on one dataset with the handoffs
-explicit, attribution **validated against known ground truth** - plus the four
-things the first pass named as missing: the **customer link** it called its single
-biggest structural gap, touch timestamps, Shapley attribution, and the executive
-memo.
+**Complete against the spec.** Three questions on one dataset with the handoffs
+computed, attribution validated against known ground truth, **a real dbt pipeline
+with a leakage test that fails the build**, k chosen rather than asserted,
+**Shapley at twelve channels with its sampled approximation actually checked**,
+higher-order Markov, CAC and ROAS against incremental truth, and an **unobserved
+confounder that no method here can beat**.
+
+Three of the sections below report that something does not work. Two of those are
+the most useful results in the project.
 
 ```bash
-python src/generate.py       # ~40s  transactions + journeys, now with customer ids
-python run_analytics.py      # ~1min
-python -m pytest tests -q    # 29 tests
+python src/generate.py       # ~5s    8,000 customers, 15,238 journeys, 12 channels
+python run_analytics.py      # ~1min  the original report
+python run_complete.py       # ~7min  the completion pass (dbt build + k sweep)
+python -m pytest tests -q    # 54 tests
 ```
 
-8,000 customers, 90,092 transactions, 730 days (511 calibration / 219 holdout).
+8,000 customers, 89,540 transactions, **15,238 journeys (1.9 per customer)**,
+**12 channels**, 730 days.
 
-## Why the touch data is simulated
+## A pipeline, not three scripts
 
-Real multi-touch attribution data with ground truth does not exist publicly, and
-it **cannot** — the ground truth is a causal quantity, so establishing it takes an
-experiment nobody publishes. Without truth, attribution methods can only be
-asserted, which is exactly why the field is full of confident numbers that
-misallocate budget.
+```
+ok  land_raw     1.7s     ok  dbt_build  31.3s     ok  read_marts  0.2s
+dbt: PASS=15 WARN=0 ERROR=0 SKIP=0 TOTAL=15
+marts: customer_rfm 7,894 rows · customer_holdout 2,847 rows
+```
 
-So channel effects are chosen and every method is **scored** against them. Three
-things are planted: known incremental effects per channel; position bias (display
-and social open journeys, email and search close them, so first- and last-touch
-have systematically *opposite* biases); and a **zero-effect retargeting channel**
-targeted at users who were going to convert anyway.
+Five dbt models (two staging views, three marts) on DuckDB, ten dbt tests, and a
+120-line DAG runner. What dbt actually buys here, and it is not SQL for its own
+sake:
 
-## Segmentation — and whether it predicts anything
+- **One definition of the calibration cutoff.** It was retyped in the generator
+  and again in the analysis; it is now a dbt var. A cutoff living in four files
+  will eventually differ between two of them, and the leakage is invisible in each
+  query on its own.
+- **A leakage test that runs.** `customer_holdout` is a separate model from
+  `customer_rfm`, and a singular test **fails the build** if any holdout row falls
+  on or before the cutoff. That was previously a convention, and a convention is
+  a thing people follow until a deadline.
+- **A test that asserts a table is what it claims to be.** `channel_daily` credits
+  every channel that touched a converting journey, so its conversion column must
+  sum to *more* than the true conversion count — 20,344 against 4,971. A test
+  asserts exactly that. If it ever stops holding, someone has quietly turned a
+  reach table into an attribution table, which is the most common analytics error
+  in this domain.
 
-Bootstrap stability over 20 resamples: **ARI 0.939** (min 0.895).
+The orchestrator is 120 lines and not Airflow on purpose: what a scheduler is
+*for* at this size is dependencies, idempotency and failure semantics — a task
+whose upstream failed is marked `skipped` and never runs on stale inputs, and a
+task marked non-idempotent is never retried, because retrying an append silently
+doubles it. Installing Airflow would demonstrate that Airflow installs.
 
-| segment | n | cal frequency | recency | **churn T+1** | holdout spend |
+> **The load step took 532 seconds** before it took 1.7. It inserted 160,000 rows
+> with `executemany`, paying per-statement overhead on a columnar engine and
+> getting none of the vectorisation DuckDB exists for. Registering a frame and
+> doing one `INSERT … SELECT` is roughly three orders of magnitude faster.
+> Reaching for the row-oriented API on a columnar store is the most common way a
+> warehouse load ends up slower than the CSV it replaced.
+
+**Honest limit:** DuckDB. The models, the graph and the tests are real dbt and
+would run on Snowflake with a profile change. What is absent is everything about
+a warehouse that is hard — concurrency, cost governance, permissions, incremental
+strategies at scale.
+
+## Choosing k — six criteria, five answers
+
+| criterion | k |
+|---|---|
+| silhouette (max) | 3 |
+| Calinski-Harabasz (max) | 2 |
+| Davies-Bouldin (min) | 8 |
+| elbow (inertia knee, computed) | 4 |
+| stability (max ARI over bootstraps) | 2 |
+| **forward separation (max adjusted η²)** | **6** |
+
+They disagree for principled reasons. Silhouette rewards compact spheres.
+Stability rewards *coarse* partitions — k=2 is stable on almost any data because
+there is little to disagree about. Forward separation rewards whatever correlates
+with the outcome.
+
+**The one that should decide is forward separation**, because it is the only
+criterion tied to what the segments are *for*. The rest measure whether the
+geometry is tidy, which is a question nobody in the business asked. And it is
+reported **adjusted**, because raw η² rises with k mechanically and an unadjusted
+table always recommends the largest k on offer.
+
+### HDBSCAN, swept rather than asserted
+
+| min_cluster_size | clusters | noise share | largest cluster |
+|---|---|---|---|
+| 25 | 8 | 0.849 | 362 |
+| 50 | 2 | **0.556** | 3,228 |
+| 100 | 2 | 0.691 | 2,328 |
+| 200 | 0 | 1.000 | 0 |
+
+**HDBSCAN leaves the majority unassigned at every setting tried**, and that is a
+statement about this customer base rather than about the algorithm: RFM features
+on a retail panel are one diffuse cloud with a thin high-value tail, not a set of
+dense islands. There is no density structure to find, so a density method
+correctly finds none — and a marketing team handed a clustering that covers 44% of
+customers will go back to k-means by the end of the week.
+
+**The comparison is not "which is better".** k-means forces a partition and is
+therefore always actionable and sometimes fictional; it will cheerfully cut a
+single cloud into five wedges and name them. HDBSCAN refuses to invent structure
+and is therefore sometimes honest and often unusable. The useful output of running
+both is knowing which one you are buying — here, k-means is inventing the
+segments, and that is worth knowing before anyone builds a campaign on them.
+
+## Shapley at twelve channels — and the check that failed
+
+Exact Shapley over 12 channels is 4,096 coalitions: large enough to be interesting,
+small enough that the exact answer still exists. So the sampled estimator can be
+scored against the thing it approximates.
+
+| permutations | mean abs error |
+|---|---|
+| 25 | 0.0713 |
+| 100 | 0.0730 |
+| 400 | 0.0596 |
+| 800 | **0.0572** |
+
+**32× more permutations should cut Monte-Carlo error by 5.66×. Measured: 1.25×.**
+
+It does not converge. The error falls a little and plateaus, which means the gap
+is **bias, not variance** — the sampler is converging to a different number, not
+noisily to the same one.
+
+The cause is that only **2,519 of 4,096 coalitions were ever observed**. A
+permutation walks the lattice one channel at a time and cannot advance when the
+next coalition was never seen, so permutations *stall*, and they stall more often
+for channels appearing in rare combinations. The exact estimator has the same
+missing data but reweights by the coalitions it did use; the sampler cannot,
+because it never learns which ones it skipped.
+
+**So they are not the same estimator at two sample sizes — they are different
+estimators.** Sampled Shapley on a sparse coalition lattice needs a different
+value function (marginal contributions per journey rather than per observed
+coalition), not more permutations. This is precisely the check the usual
+justification for sampling skips: "the exact version is intractable" is true at 30
+channels and is also the regime where nobody can discover this.
+
+## Higher-order Markov — every channel gets exactly zero
+
+| order | states | thin-state share | max removal effect | channels with zero credit |
+|---|---|---|---|---|
+| 1 | 13 | 0.000 | 0.000089 | **12 / 12** |
+| 2 | 152 | 0.092 | 0.000010 | **12 / 12** |
+| 3 | 1,354 | 0.287 | 0.000000 | **12 / 12** |
+
+**That is not a bug, and it is the most useful thing in the section.**
+
+This implementation removes a channel by **deleting the touch from the journeys**
+and re-estimating — the counterfactual a marketer means by "what if we turned it
+off". Done that way the conversion probability does not move, because in
+observational path data the outcome is attached to the **journey**, not to the
+path: a journey that converted still converted with one touch removed.
+
+The textbook removal effect avoids that by deleting the **node from the graph** and
+renormalising, which strands the removed node's inbound probability mass in the
+null state. That produces a satisfying non-zero number — `markov_removal` scores
+0.1082 MAE with it below — and the number comes from the graph representation
+rather than from anything about the channel.
+
+The two implementations disagree completely, and **the one that returns zeros is
+the one being honest.** "Remove the channel from the graph" was never a causal
+statement; this is what it looks like when you write down the counterfactual it
+claims to compute and then actually compute it. Both are kept, and a test pins
+each.
+
+## CAC and ROAS — and why channel-level ones never reconcile
+
+| channel | spend | observational CAC | **incremental CAC** | observational ROAS | incremental ROAS |
 |---|---|---|---|---|---|
-| 1 | 790 | 36.1 | 67 | **36.7%** | $600 |
-| 2 | 548 | 0.7 | 95 | 37.8% | $68 |
-| 3 | 3,083 | 8.7 | 115 | 41.3% | $184 |
-| 0 | 1,357 | 3.1 | 404 | 91.3% | $11 |
-| 4 | 2,222 | 3.2 | 426 | **94.6%** | $7 |
+| paid_search | $2,984.80 | $1.18 | $2.92 | 119.75 | 133.18 |
+| shopping_feed | $979.38 | $0.58 | $1.57 | 238.70 | 248.04 |
+| affiliate | $484.47 | $0.30 | $1.42 | 462.53 | 273.51 |
+| **retargeting** | $298.50 | **$0.16** | **∞** | **861.66** | **0.00** |
 
-**57.9 points** of churn-rate spread and $7→$600 of holdout spend. Segments that
-don't separate *future* behaviour are decoration — you can always partition a
-cloud of points and name the parts. The only way to know is to hold out time and
-look.
+Blended CAC is $1.27. The channels' `conversions_touched` sum to **20,344 against
+4,971 actual conversions**, because every conversion touched by four channels is
+counted four times. That is what every channel-level CAC in every marketing deck
+is, and it is why the numbers never reconcile to the blended figure.
 
-Operationally that spread is a **targeting prior, not a playbook**: it says where
-retention budget has headroom, not what intervention works — that needs a test
-per segment. And acting on a segment *changes* it, so these are pre-intervention
-baselines that stop being true the moment anyone uses them.
+**Look at `retargeting`**: a channel that causes nothing has a defensible $0.16
+CAC and an 861× ROAS, and would survive any efficiency review. Its incremental CAC
+is infinite. That gap is the business case for the experiment, denominated in
+dollars rather than in credit shares.
 
-## CLV — and a caveat on the caveat
+## The unobserved confounder — why no method here can win
 
-BG/NBD (r=0.607, α=15.50, a=1.273, b=15.12) and Gamma-Gamma (p=2.976, q=6.519,
-v=135.0), both written out from scratch since `lifetimes` isn't installed —
-which forces the assumptions into view.
+The previous README ended by admitting *"the attribution simulator has no
+unobserved confounders beyond the one I planted — so every method here performs
+better than it would on real data."* That is now false by construction.
 
-Gamma-Gamma assumes value is independent of frequency. **Tested, not assumed:**
-measured correlation **+0.0035** — holds here.
+`in_market` is a latent state affecting **32%** of customers. It raises conversion
+probability by 0.16 **and** multiplies exposure to closing channels by 2.4×. It is
+never written to disk.
 
-Decile calibration on the temporal holdout:
-
-| decile | predicted | actual | ratio |
-|---|---|---|---|
-| 5 | 43.3 | 51.8 | 0.84 |
-| 7 | 169.1 | 164.0 | 1.03 |
-| 9 | 791.4 | 804.5 | 0.98 |
-
-The textbook warning is that these models rank populations well and mispredict
-individuals. **That is not what this run shows** — the individual correlation is
-0.80. Reporting that as evidence the model predicts individuals well would be the
-most misleading thing in this project, because the reason is circular: my
-generator draws inter-purchase times from an exponential with a Gamma-distributed
-rate and applies a Beta dropout after each purchase. **That *is* the BG/NBD
-process.** The model is scored on data satisfying its assumptions exactly.
-
-What this section actually validates is that the estimator recovers parameters
-and the calibration harness works — worth knowing, and not the same claim. A test
-fits BG/NBD to data drawn with known parameters and asserts recovery.
-
-| model | Spearman | MAE |
+| method | MAE vs truth | credit to the zero-effect channel |
 |---|---|---|
-| BG/NBD + Gamma-Gamma | **0.739** | **88.6** |
-| GBM challenger | 0.714 | 95.3 |
+| shapley | **0.0292** | 0.1065 |
+| linear | 0.0344 | 0.0900 |
+| time_decay | 0.0348 | 0.1243 |
+| shapley_sampled | 0.0466 | 0.1257 |
+| last_touch | 0.0620 | 0.1996 |
+| first_touch | 0.0772 | 0.0163 |
+| markov_removal | 0.1082 | 0.1166 |
 
-Recommendation is the probabilistic model, and not because it won every number:
-it gives P(alive) and a purchase-count distribution rather than a point estimate,
-extrapolates to horizons it never saw, and has four arguable parameters. The GBM
-needs a labelled future, so it can only predict horizons you've already lived
-through — and silently relearns whatever selection is in the label window.
+**Every method credits the zero-effect channel, and every method has non-trivial
+error.** The distinction from the planted retargeting confound matters: that one
+is observable *in principle* — propensity is a customer attribute a good model
+could proxy. This one is not, and no attribution system in the world can condition
+on it: it is the thing the customer knows and the ad server does not.
 
-## Attribution, scored against truth
+The useful reading is not the ranking. It is that the ranking is now a comparison
+of **how each method fails** rather than a search for one that succeeds — with an
+unobserved common cause of exposure and outcome, none of them *can*. That is a
+theorem, not a limitation of these implementations, and it is why the geo holdout
+is the only instrument that answers the question at all.
 
-| method | display | social | email | paid_search | **retargeting** | MAE |
-|---|---|---|---|---|---|---|
-| **TRUTH** | 0.089 | 0.200 | 0.311 | 0.400 | **0.000** | — |
-| last_touch | 0.027 | 0.046 | 0.230 | 0.340 | **0.358** | 0.143 |
-| first_touch | **0.647** | 0.250 | 0.058 | 0.030 | 0.016 | 0.249 |
-| linear | 0.263 | 0.210 | 0.211 | 0.169 | 0.146 | 0.132 |
-| time_decay | 0.157 | 0.155 | 0.243 | 0.232 | 0.213 | 0.113 |
-| markov_removal | 0.000 | 0.203 | 0.277 | 0.338 | 0.183 | **0.074** |
+## What is deliberately not here
 
-Last-touch over-credits closers, first-touch over-credits openers (display 0.647
-against a truth of 0.089) — systematically, because the generator gave channels
-position bias.
-
-## The planted channel
-
-`retargeting` has a true causal effect of **exactly zero**.
-
-```
-conversion rate WITH retargeting    : 0.2832
-conversion rate WITHOUT retargeting : 0.2346
-apparent lift                       : +0.0486   (TRUE lift: 0.0000)
-```
-
-**Every method credits it** — last-touch hands it 35.8% of all credit; even
-`markov_removal`, which sounds causal, gives it 18.3%. "Remove the channel from
-the graph" is a statement about observed paths, not about the world: it assumes
-the users who saw that channel would have walked the same graph minus one node.
-When the channel was *targeted* at high-intent users, removing it also removes
-the intent that arrived with it, and the method charges that intent to the
-channel.
-
-**The experiment that would settle it**, sized: geo holdout, matched markets,
-retargeting off in control. Geo rather than user-level because cookie holdouts
-leak across devices and the ad platform optimises delivery against the holdout,
-breaking randomisation. Cost is the foregone spend in control markets — which, if
-the effect really is zero, is not a cost at all. That asymmetry is the pitch.
-
-## The budget decision, and a result that complicates it
-
-$1,500 (~$0.19/prospect) allocated in proportion to credited share, evaluated in
-the true world with concave reach:
-
-| allocation | conversions | spend on zero-effect channel | lost vs truth |
-|---|---|---|---|
-| TRUTH | 2,165.7 | $0 | — |
-| time_decay | 2,086.0 | $319 | 79.8 (3.7%) |
-| last_touch | 2,072.1 | **$537 (35.8%)** | 93.6 (4.3%) |
-| linear | 2,050.6 | $220 | 115.1 (5.3%) |
-| markov_removal | 1,978.0 | $274 | 187.7 (8.7%) |
-| first_touch | 1,939.8 | $24 | 225.9 (10.4%) |
-
-Last-touch costs 94 conversions and puts **35.8% of the budget into a channel
-that causes nothing**.
-
-**But rank by attribution error and by budget outcome and the orders disagree.**
-`markov_removal` has the *lowest* MAE (0.074) and the *second-worst* budget
-outcome (−8.7%); `time_decay` is middling on MAE and best on decisions. Getting
-credit shares closest to truth is not the same as making the best decision,
-because the decision runs those shares through channel costs and a concave reach
-curve — a method can be wrong in a direction that happens to be cheap.
-**Choosing an attribution method on MAE alone optimises the wrong objective.**
-
-> The first version of this section used a $1m budget, which saturated every
-> channel's reach and made all six allocations tie at exactly 2,600 conversions.
-> A section where every method wins equally is a broken section, not a finding.
-
-## Second pass: four gaps the first pass named
-
-### The CLV handoff - computed, not reasoned about
-
-The first pass called this *the single biggest structural gap*: journeys weren't
-linked to customer ids, so the budget objective couldn't be weighted by the value
-of the customers a channel acquires - which is the whole point of computing CLV
-in the same project. The link exists now.
-
-| channel | converters touched | mean CLV | **CLV index** |
-|---|---|---|---|
-| display | 1,534 | $150.96 | **1.040** |
-| social | 1,341 | $147.20 | 1.010 |
-| retargeting | 1,091 | $143.37 | 0.990 |
-| paid_search | 1,181 | $142.98 | 0.980 |
-| email | 1,324 | $141.43 | 0.974 |
-
-Scoring the same allocations two ways - conversions, and conversions weighted by
-acquired-customer CLV - gives **the same winner**. And that's reported rather than
-hidden: the CLV spread across channels is only 0.066, because this simulator
-doesn't correlate channel with customer value. The join has nothing to bite on
-*here*, which is a property of the lab, not a general result. On real data the
-cheap acquisition channels are usually the low-value ones, which is exactly when
-this weighting earns its keep.
-
-**Honest limit on the weighting itself:** `clv_index` is correlational. A channel
-above 1.0 may be *acquiring* better customers, or may simply be *touching*
-customers who were already valuable - the same confound the retargeting section is
-about. Weighting a budget by it inherits that confound, which makes the case for
-the experiment **larger**, not smaller.
-
-### Shapley - and the strongest form of the central finding
-
-Shapley has a formal **dummy-player axiom**: a channel that changes no
-coalition's conversion rate is guaranteed exactly zero credit. It's the only
-method here with that property, and a test proves it holds when a dummy channel
-is added *at random*.
-
-On the planted data, **Shapley gives retargeting 0.168**.
-
-The axiom isn't violated - it's satisfied, on a coalition function that is itself
-confounded. Retargeting genuinely *does* raise the observed conversion rate of
-every coalition it joins, because it joins the coalitions of customers who were
-going to convert. **Shapley answers its question correctly; the question is the
-wrong one.** No amount of methodological sophistication fixes data that contains
-no variation in whether the channel ran.
-
-Shapley is also the **most accurate** method (MAE 0.074) and the best-performing
-allocation among the heuristics (2.2% of conversions lost vs truth).
-
-### A correction the regenerated data forced
-
-The first pass said *"every method credits it, including markov_removal"*. After
-regeneration that became false - `markov_removal` reads **0.0000** for
-retargeting. It is not detecting the confound:
-
-```
-markov_removal   display 0.0000  social 0.0802  email 0.2810  paid_search 0.6389  retargeting 0.0000
-TRUTH            display 0.0889  social 0.2000  email 0.3111  paid_search 0.4000  retargeting 0.0000
-```
-
-It has collapsed the credit onto one channel and **zeroed display too**, whose
-true share is 0.089. That's a known brittleness of removal effects: a channel
-whose removal doesn't *disconnect* the graph scores zero regardless of
-contribution. It happens to be right about retargeting and wrong about display for
-the same reason. **A method that is accidentally right is not a method you can
-deploy, because you cannot tell in advance which of its zeros are correct.**
-
-`first_touch` also gives it little (0.016) - retargeting is a *closer*, so a
-first-touch model barely sees it. That's the mirror image of the position bias
-that makes last-touch over-credit it, not evidence that first-touch is
-unconfounded. Both facts are now asserted in the test, which previously claimed
-"every method" and was asserting an accident.
-
-### Time decay over days, and the memo
-
-Time decay now decays over **days** rather than journey position - the generator
-carries touch timestamps. Position decay treats a touch three steps back the same
-whether it was yesterday or three weeks ago, and those are different claims.
-
-The **executive memo** the spec asks for is written to `out/EXECUTIVE_MEMO.md`:
-recommendation, the geo-holdout pitch with its asymmetry argument (the experiment
-is cheapest in exactly the world where the channel is worthless), what the
-analysis is based on, an explicit *what we are not claiming* section, and the cost
-of doing nothing.
-
-## The other ~50% - what is still NOT here
-
-- **No dbt models, no marts, no orchestration.** The pipeline is three Python
-  scripts.
-- **One journey per customer.** The link exists but the simulator gives each
-  customer a single journey, so it cannot model repeat acquisition or the same
-  customer being touched across campaigns.
-- **The CLV weighting is correlational** (see above) and inherits the confound
-  it is meant to help price.
-- **No HDBSCAN**, no k selection procedure - k=5 is asserted, and only stability
-  and forward-separation are measured, not optimality.
-- **Markov is first-order only**; no higher-order path models.
-- **Shapley is exact over 5 channels.** At 30 channels the 2^30 coalitions need
-  sampling, which is not implemented.
-- **No CAC or ROAS**, so the budget table is conversions and customer value, not
-  profit.
-- **The generator is the model.** BG/NBD is fitted to a BG/NBD process and the
-  attribution simulator has no unobserved confounders beyond the one I planted —
-  so every method here performs better than it would on real data.
+- **Real touch data with ground truth does not exist and cannot**, because the
+  ground truth is a causal quantity. That is why the generator is the point rather
+  than an apology.
+- **One journey per customer is fixed; repeat *acquisition* is not modelled.**
+  Customers now have several journeys, but a customer who churns and is re-won is
+  not represented as such.
+- **No CUPED, no synthetic control, no geo experiment** — the report argues for
+  one and does not run it; DATA-3 is where designs live.
+- **The dbt project is five models.** No incremental materialisations, no
+  snapshots, no exposures, no docs site.
+- **Sampled Shapley is left biased**, with the diagnosis written down rather than
+  the fix implemented.
+- **The generator is still a model.** BG/NBD is fitted to a BG/NBD process, and
+  the confounder is one I chose — a real system has many, correlated, and none of
+  them documented.

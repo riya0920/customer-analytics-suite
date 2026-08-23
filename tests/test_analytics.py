@@ -188,9 +188,15 @@ def test_planted_channel_has_zero_true_effect_but_is_credited():
     #                      position bias that makes last-touch over-credit it,
     #                      and it is a property of WHERE the channel fires, not
     #                      evidence that first-touch is unconfounded.
-    material = [n for n, v in credited.items() if v > 0.05]
+    # Thresholds are RELATIVE to the channel count, not absolute. The generator
+    # now runs twelve channels rather than five, so every credit share is
+    # mechanically smaller and an absolute 0.20 bar tests the catalogue size
+    # rather than the confound. Fair share is 1/n; the claim is that the
+    # zero-effect channel gets a large multiple of it.
+    fair = 1.0 / len(channels)
+    material = [n for n, v in credited.items() if v > fair]
     assert len(material) >= 3, credited
-    assert credited["last_touch"] > 0.20, credited
+    assert credited["last_touch"] > 2.0 * fair, (fair, credited)
     assert credited["shapley"] > 0.05, \
         "even Shapley, which has a dummy-player axiom, must credit it here"
     assert credited["first_touch"] < credited["last_touch"], \

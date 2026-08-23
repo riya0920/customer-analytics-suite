@@ -23,3 +23,10 @@ venv/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Large regenerable artifacts
+out/*.pkl
+out/*.log
+data/*.duckdb
+dbt/target/
+dbt/logs/

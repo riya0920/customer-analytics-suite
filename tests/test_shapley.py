@@ -152,13 +152,27 @@ def test_generated_journeys_carry_customer_ids_and_timestamps():
         assert t == sorted(t), "touch timestamps must be ordered"
 
 
-def test_customer_ids_are_unique_per_journey():
+def test_customers_now_have_MULTIPLE_journeys():
+    """The previous pass gave each customer exactly one journey and listed that
+    as a limitation: it could not represent re-engagement at all, which is most
+    of what a retail marketing budget buys.
+
+    This test is the inverse of the one it replaces. The old test asserted one
+    journey per customer, which was true and was the defect.
+    """
     if not os.path.exists(os.path.join(DATA, "journeys.json")):
         pytest.skip("run `python src/generate.py` first")
     with open(os.path.join(DATA, "journeys.json")) as f:
         jd = json.load(f)
     ids = jd["customer_id"]
-    assert len(set(ids)) == len(ids), "one journey per customer in this simulator"
+    assert len(ids) > len(set(ids)), "customers must be able to return"
+    per = {}
+    for c in ids:
+        per[c] = per.get(c, 0) + 1
+    assert max(per.values()) >= 3, "some customer should have several journeys"
+    # and a customer's journeys are indexed, so repeat exposure is identifiable
+    assert "journey_index" in jd
+    assert len(jd["journey_index"]) == len(ids)
 
 
 def test_even_shapley_credits_the_planted_channel():

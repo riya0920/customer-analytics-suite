@@ -3,9 +3,9 @@
 **Complete against the spec.** Three questions on one dataset with the handoffs
 computed, attribution validated against known ground truth, **a real dbt pipeline
 with a leakage test that fails the build**, k chosen rather than asserted,
-**Shapley at twelve channels with its sampled approximation actually checked**,
-higher-order Markov, CAC and ROAS against incremental truth, and an **unobserved
-confounder that no method here can beat**.
+**Shapley at twelve channels with its sampled approximation checked and then
+repaired**, higher-order Markov, CAC and ROAS against incremental truth, and an
+**unobserved confounder that no method here can beat**.
 
 Three of the sections below report that something does not work. Two of those are
 the most useful results in the project.
@@ -14,7 +14,7 @@ the most useful results in the project.
 python src/generate.py       # ~5s    8,000 customers, 15,238 journeys, 12 channels
 python run_analytics.py      # ~1min  the original report
 python run_complete.py       # ~7min  the completion pass (dbt build + k sweep)
-python -m pytest tests -q    # 54 tests
+python -m pytest tests -q    # 69 tests
 ```
 
 8,000 customers, 89,540 transactions, **15,238 journeys (1.9 per customer)**,
@@ -138,10 +138,103 @@ because it never learns which ones it skipped.
 
 **So they are not the same estimator at two sample sizes — they are different
 estimators.** Sampled Shapley on a sparse coalition lattice needs a different
-value function (marginal contributions per journey rather than per observed
-coalition), not more permutations. This is precisely the check the usual
+value function, not more permutations. This is precisely the check the usual
 justification for sampling skips: "the exact version is intractable" is true at 30
 channels and is also the regime where nobody can discover this.
+
+The stall is now **counted rather than inferred**: the exact-set sampler stalls on
+**1,828 of 4,800 permutation steps (38.1%)**. More than a third of every walk
+lands on a coalition nobody was ever exposed to.
+
+## The fix — two value functions, and they are not the same fix
+
+The previous pass stopped at the diagnosis. This is the repair.
+
+### Fix 1 — a value function defined on the whole lattice
+
+`v(S)` = the conversion rate among journeys whose channel set is a **subset** of
+S: *"what is achievable using only the channels in S"*. The old one asks *"what
+happened to the customers who saw exactly this combination and nothing else"* — a
+question about a rarer and rarer group as the coalition grows, and undefined once
+that group is empty.
+
+| | coalitions defined |
+|---|---|
+| exact-set | 2,519 of 4,096 (61.5%) |
+| **subset-closure** | **4,095 of 4,096 (100.0%)** |
+
+The one undefined coalition is the empty set, and that is correct: no channels is
+no marketing, and the rate is zero by *definition* rather than by missing data.
+
+Same estimator, same permutations, same seed logic — only the game being sampled
+changed:
+
+| permutations | exact-set error | closure error |
+|---|---|---|
+| 25 | 0.08459 | 0.02425 |
+| 100 | 0.06154 | 0.01172 |
+| 400 | 0.05393 | 0.00616 |
+| 800 | **0.05034** (plateau) | **0.00458** |
+
+**32× the permutations should cut a purely noisy error 5.66×. The exact-set
+version manages 1.68×; the closure version manages 5.30×.** It converges, and the
+stall count is zero by construction because there is no rung to fall off.
+
+**Efficiency residual: −5.55e−17** against a grand-coalition value of 0.3262. The
+credits add up to the thing being attributed, to machine precision — a check that
+was not available for the exact-set version at all, whose grand coalition is
+estimated from whichever handful of customers happened to see all twelve channels.
+
+> **The number of seeds needed to measure a convergence rate is itself something
+> that has to be checked.** One seed read **8.10×** and was non-monotone; six
+> seeds read **6.44×**. Both are *above* the 5.66× ceiling that 1/√n sets — which
+> is not a fast estimator, it is an unconverged measurement *of* an estimator. It
+> took twelve seeds to settle underneath the ceiling where it belongs. The same
+> mistake this section exists to catch, one level up.
+
+### Fix 2 — Shapley inside each journey
+
+Not the same fix. It changes what the lattice **is**: a journey with five touches
+has 32 sub-coalitions whether the catalogue holds 12 channels or 300.
+
+```
+distinct channel sets      : 2,519
+most channels in a journey : 9
+sub-coalitions per journey : 512 at that maximum
+marginal evaluations       : 454,200, computed EXACTLY
+```
+
+No sampling at all. **The intractability that justified sampling was a property of
+the value function, not of the problem.**
+
+> **The test caught this claim being false in my own implementation.** The first
+> version called the dense builder for its value function, which materialises
+> 2^n. At 12 channels that is 4,096 and invisible; the test that runs it at 30
+> channels asked for **8 GiB**. The estimator whose entire claim is that it does
+> not depend on channel count was depending on channel count — and the claim sat
+> in the docstring through a full clean run before a test disagreed with it. It
+> now builds one zeta transform per *journey*, over that journey's own bits, and
+> a test pins that the local answer equals the global one to 1e−12.
+
+### Against planted truth
+
+| method | MAE vs truth |
+|---|---|
+| **per-journey** | **0.0247** |
+| closure | 0.0268 |
+| exact-set | 0.0292 |
+| sampled (old) | 0.0466 |
+
+**Read that carefully.** Both fixes beat what they replaced, but they are not two
+approximations of one number — they are two different questions. Closure asks what
+a channel adds to what is *achievable*; per-journey asks how each observed
+journey's outcome divides among the touches that were in it. Nothing makes them
+agree, and reporting whichever scored better without saying they measure different
+things would be **picking an estimand by leaderboard**.
+
+And the zero-effect channel is still credited **0.0812** under closure and
+**0.0690** per journey. **Fixing the estimator does not fix the data** — the same
+conclusion the confounder section reaches from the other direction.
 
 ## Higher-order Markov — every channel gets exactly zero
 
@@ -234,8 +327,9 @@ is the only instrument that answers the question at all.
   one and does not run it; DATA-3 is where designs live.
 - **The dbt project is five models.** No incremental materialisations, no
   snapshots, no exposures, no docs site.
-- **Sampled Shapley is left biased**, with the diagnosis written down rather than
-  the fix implemented.
+- **Neither Shapley fix is causal**, and neither claims to be. Both are exact
+  allocations of an *observational* quantity; the confounder section below is
+  what says why that quantity is not the one anybody wants.
 - **The generator is still a model.** BG/NBD is fitted to a BG/NBD process, and
   the confounder is one I chose — a real system has many, correlated, and none of
   them documented.

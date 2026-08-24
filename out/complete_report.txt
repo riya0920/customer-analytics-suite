@@ -5,9 +5,9 @@ DATA-1 COMPLETION PASS -- 15238 journeys, 12 channels, 8000 customers
 ==============================================================================
 A. A PIPELINE, NOT THREE SCRIPTS
 ==============================================================================
-  ok       land_raw       0.7s
-  ok       dbt_build      10.9s
-  ok       read_marts     0.0s
+  ok       land_raw       3.4s
+  ok       dbt_build      59.1s
+  ok       read_marts     0.3s
 
   dbt: PASS=15 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=15
   marts: customer_rfm 7894 rows, customer_holdout 2847 rows
@@ -47,13 +47,13 @@ WHAT DBT BUYS HERE, AND IT IS NOT SQL FOR ITS OWN SAKE:
 B. CHOOSING k, AND WHAT HAPPENS WHEN YOU STOP CHOOSING IT
 ==============================================================================
  k   silhouette  calinski_harabasz  davies_bouldin     mean_ari  eta_squared  adjusted_eta_squared
- 2       0.2052          2200.2516          1.7277       0.9283       0.1919                0.1918
- 3       0.2133          2098.8789          1.6356       0.9535       0.2198                0.2196
- 4       0.2020          1942.2003          1.4914       0.9170       0.2593                0.2591
- 5       0.1867          1782.7866          1.5528       0.7298       0.2997                0.2994
- 6       0.1868          1689.4387          1.4484       0.6992       0.3113                0.3108
- 7       0.1845          1613.3548          1.4138       0.6875       0.3094                0.3089
- 8       0.1871          1550.2991          1.3737       0.7325       0.3070                0.3064
+ 2       0.2046          2200.0497          1.7363       0.9409       0.1867                0.1866
+ 3       0.2091          2098.8796          1.6358       0.9423       0.2199                0.2197
+ 4       0.1996          1942.2025          1.4915       0.9007       0.2588                0.2585
+ 5       0.1857          1782.7557          1.5522       0.6707       0.2991                0.2987
+ 6       0.1852          1689.4300          1.4489       0.6562       0.3130                0.3125
+ 7       0.1863          1613.6835          1.4119       0.7499       0.3072                0.3066
+ 8       0.1907          1550.0330          1.3726       0.6345       0.3076                0.3070
 
   silhouette (max)                     k = 3
   calinski-harabasz (max)              k = 2
@@ -81,7 +81,7 @@ HDBSCAN, which does not take k at all -- swept over min_cluster_size:
 
   min_cluster_size     clusters  noise share largest cluster
   25                          8       0.8484            363
-  50                          2       0.5562           3229
+  50                          2       0.5562           3228
   100                         2       0.6905           2328
   200                         0       1.0000              0
   400                         0       1.0000              0
@@ -142,10 +142,9 @@ IT DOES NOT CONVERGE, AND THAT IS THE RESULT OF RUNNING THE CHECK.
   skipped.
 
   So the two are not the same estimator at different sample sizes. They
-  are different estimators, and the honest conclusion is that sampled
-  Shapley on a SPARSE coalition lattice needs a different value
-  function -- marginal contributions estimated per journey rather than
-  per observed coalition -- not more permutations.
+  are different estimators, and the conclusion is that sampled Shapley
+  on a SPARSE coalition lattice needs a different VALUE FUNCTION, not
+  more permutations. Two of those are built and measured below.
 
   This is exactly the check the usual justification for sampling skips.
   'The exact version is intractable' is true at 30 channels and is also
@@ -172,6 +171,103 @@ shopping_feed    0.0999    0.2417    0.0144    0.1256
   injects large spurious negative marginals which normalisation then
   amplifies into confident nonsense. That bug once gave two
   interchangeable channels 1.0 and 0.0.
+
+==============================================================================
+C2. THE FIX -- TWO VALUE FUNCTIONS, AND THEY ARE NOT THE SAME FIX
+==============================================================================
+The previous section diagnosed the bias and left the repair as a note.
+This is the repair, and it is measured against the same truth.
+
+  The stall is now counted rather than inferred: the exact-set sampler
+  stalls on 1828 of 4800 permutation steps (38.1%). A third of every walk
+  lands on a coalition nobody was ever exposed to.
+
+FIX 1 -- SUBSET-CLOSURE VALUE FUNCTION.
+  v(S) = the conversion rate among journeys whose channel set is a
+  SUBSET of S: 'what is achievable using only the channels in S'. The
+  exact-set version asks 'what happened to people who saw exactly this
+  combination and nothing else', which is a question about a rarer and
+  rarer group as the coalition grows -- and is undefined once the group
+  is empty.
+
+  coalitions defined, exact-set : 2519 of 4096  (61.5%)
+  coalitions defined, closure   : 4095 of 4096  (100.0%)
+
+  The one undefined coalition is the empty set, which is correct: no
+  channels is no marketing and that rate is zero by definition, not by
+  missing data.
+
+  Efficiency residual: -5.55e-17 against a grand-coalition value of 0.3262.
+  The credits add up to the thing being attributed, to machine
+  precision. That check is not available for the exact-set version at
+  all, because its grand coalition is estimated from whichever handful
+  of customers happened to see all twelve channels.
+
+ n_perms  exact_set_err   closure_err
+      25        0.08459       0.02425
+      50        0.06907       0.01825
+     100        0.06154       0.01172
+     200        0.06015       0.00862
+     400        0.05393       0.00616
+     800        0.05034       0.00458
+
+  Both columns are averaged over 12 seeds, and that count had to be
+  measured too. One seed read 8.10x and was non-monotone; six seeds
+  read 6.44x. Both are ABOVE the 5.66x ceiling that 1/sqrt(n) sets --
+  which is not a fast estimator but an unconverged measurement OF an
+  estimator. It took twelve seeds to settle just under the ceiling,
+  where it belongs. The same mistake, one level up.
+
+  32x the permutations should cut error 5.66x if the error is variance.
+     exact-set value function : 1.68x   (plateaus at 0.05034)
+     closure value function   : 5.30x   (reaches 0.00458)
+
+  IT CONVERGES. Same estimator, same permutations, same seed logic:
+  the only thing that changed is the game being sampled. The stall
+  count is 0 by construction, because there is no rung to fall off.
+
+FIX 2 -- SHAPLEY INSIDE EACH JOURNEY, AVERAGED ACROSS JOURNEYS.
+  distinct channel sets      : 2519
+  most channels in a journey : 9
+  sub-coalitions per journey : 512 at that maximum
+  marginal evaluations       : 454200, computed EXACTLY
+
+  This one does not need sampling at all, and the reason is the useful
+  part: the lattice is set by JOURNEY LENGTH, not by channel count. A
+  five-touch journey has 32 sub-coalitions whether the catalogue holds
+  12 channels or 300. The intractability that justified sampling was a
+  property of the value function, not of the problem.
+
+      channel   exact_set     closure  per_journey  sampled_old       truth
+  paid_search      0.1501      0.1614       0.1594       0.2433      0.2055
+        email      0.1200      0.1534       0.1826       0.1381      0.1598
+shopping_feed      0.0999      0.1160       0.1064       0.2417      0.1256
+       social      0.0917      0.0774       0.0951       0.0806      0.1027
+   influencer      0.0695      0.0585       0.0539       0.0000      0.0799
+    affiliate      0.0854      0.0767       0.0711       0.0428      0.0685
+          ctv      0.0471      0.0489       0.0372       0.0000      0.0639
+      podcast      0.0569      0.0627       0.0447       0.0543      0.0571
+          sms      0.0727      0.0765       0.0695       0.0348      0.0502
+      display      0.0296      0.0066       0.0356       0.0058      0.0457
+         push      0.0706      0.0806       0.0755       0.0331      0.0411
+  retargeting      0.1065      0.0812       0.0690       0.1257      0.0000
+
+  MAE vs planted truth:  exact_set 0.0292   closure 0.0268   per_journey 0.0247   sampled_old 0.0466
+
+  Best against truth: per_journey (0.0247).
+
+  READ THAT CAREFULLY. Both fixes beat the estimator they replaced, but
+  they are not two approximations of one number -- they are two
+  different questions. Closure asks what a channel adds to what is
+  ACHIEVABLE; per-journey asks how each observed journey's outcome
+  divides among the touches that were actually in it. Nothing makes
+  them agree, and a project that reported whichever scored better
+  without saying they measure different things would be picking an
+  estimand by leaderboard.
+
+  And the zero-effect channel is still credited: 0.0812 under closure,
+  0.0690 per journey. Fixing the estimator does not fix the data, which
+  is the same conclusion section F reaches from the other direction.
 
 ==============================================================================
 D. HIGHER-ORDER MARKOV -- WHAT A FIRST-ORDER CHAIN THROWS AWAY

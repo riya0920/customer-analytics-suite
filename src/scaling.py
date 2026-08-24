@@ -65,6 +65,7 @@ def shapley_sampled(journeys, conversions, channels, n_perms: int = 400,
     rates, counts = _coalition_rates(journeys, conversions, channels)
     n = len(channels)
     contrib = np.zeros((n_perms, n))
+    stalls = 0
 
     for p in range(n_perms):
         order = rng.permutation(n)
@@ -78,6 +79,8 @@ def shapley_sampled(journeys, conversions, channels, n_perms: int = 400,
             if val is not None:
                 prev_val = val
                 cur = nxt
+            else:
+                stalls += 1
         # `cur` only advances through coalitions that were actually observed, so
         # a permutation walks the observed lattice rather than inventing rungs.
 
@@ -90,7 +93,9 @@ def shapley_sampled(journeys, conversions, channels, n_perms: int = 400,
             "raw": {c: float(mean[i]) for i, c in enumerate(channels)},
             "se": {c: float(se[i]) for i, c in enumerate(channels)},
             "n_perms": n_perms,
-            "observed_coalitions": len(rates)}
+            "observed_coalitions": len(rates),
+            "stalls": stalls,
+            "stall_rate": stalls / max(n_perms * n, 1)}
 
 
 def shapley_error_curve(journeys, conversions, channels, exact: dict,
@@ -105,6 +110,292 @@ def shapley_error_curve(journeys, conversions, channels, exact: dict,
         out.append(dict(n_perms=m, mean_abs_error=err,
                         max_abs_error=float(max(abs(est[c] - exact.get(c, 0.0))
                                                 for c in channels))))
+    return out
+
+
+# --------------------------------------------------------------------------
+# THE FIX: a value function defined on the WHOLE lattice
+# --------------------------------------------------------------------------
+def subset_closure_values(journeys, conversions, channels,
+                          max_channels: int = 22):
+    """v(S) = conversion rate among journeys whose channel set is a SUBSET of S.
+
+    WHY THIS EXISTS. The coalition function above is v(S) = the rate of journeys
+    whose set is EXACTLY S, and it is undefined wherever a combination was never
+    observed. That is not a rare corner: a permutation walking the full lattice
+    hits an undefined rung constantly, stalls there, and the resulting estimator
+    is biased rather than noisy -- which is what the error curve measured and
+    what more permutations could never have fixed.
+
+    This value function is defined on every coalition containing at least one
+    observed journey set. It also reads better as a business question -- "what
+    conversion rate is achievable using only the channels in S" rather than "what
+    happened to the customers who saw exactly this combination and nothing else".
+
+    It is a DIFFERENT ESTIMAND, not a better estimator of the same one, and that
+    is the honest framing: the exact answer under this value function is not the
+    exact answer under the other one, and the two should not be expected to agree.
+
+    Computed with a subset-sum (zeta) transform, n * 2^n rather than 2^n * J.
+
+    THIS ONE IS DENSE and therefore bounded by channel count: it materialises
+    2^n values. It refuses above `max_channels` rather than trying to allocate,
+    because the failure mode is an out-of-memory kill rather than a slow answer.
+    `shapley_per_journey` is the estimator that does not have this bound.
+    """
+    idx = {c: i for i, c in enumerate(channels)}
+    n = len(channels)
+    if n > max_channels:
+        raise ValueError(
+            "subset_closure_values materialises 2^%d values; refusing above "
+            "%d channels. Use shapley_per_journey, whose lattice is bounded by "
+            "journey length instead." % (n, max_channels))
+    size = 1 << n
+    tot = np.zeros(size)
+    conv = np.zeros(size)
+    for j, y in zip(journeys, conversions):
+        m = 0
+        for ch in j:
+            i = idx.get(ch)
+            if i is not None:
+                m |= 1 << i
+        tot[m] += 1.0
+        conv[m] += float(y)
+    exact_observed = int((tot > 0).sum())
+    for i in range(n):
+        bit = 1 << i
+        for m in range(size):
+            if m & bit:
+                tot[m] += tot[m ^ bit]
+                conv[m] += conv[m ^ bit]
+    v = np.zeros(size)
+    nz = tot > 0
+    v[nz] = conv[nz] / tot[nz]
+    v[0] = 0.0          # no channels is no marketing, and that rate IS zero
+    cover = dict(exact_observed=exact_observed,
+                 closure_defined=int(nz.sum()),
+                 total=size,
+                 exact_coverage=exact_observed / size,
+                 closure_coverage=int(nz.sum()) / size)
+    return v, cover
+
+
+def _weights(n):
+    from math import factorial
+    return [factorial(r) * factorial(n - r - 1) / factorial(n) for r in range(n)]
+
+
+def _share(vals, channels):
+    pos = np.clip(np.asarray(vals, dtype=float), 0, None)
+    tot = pos.sum()
+    if tot <= 0:
+        return {c: 0.0 for c in channels}
+    return {c: float(pos[i] / tot) for i, c in enumerate(channels)}
+
+
+def shapley_closure(journeys, conversions, channels, v=None):
+    """Exact Shapley over the subset-closure value function.
+
+    Efficiency is checkable here in a way it is not for the exact-set version:
+    the values must sum to v(grand coalition) - v(empty). The residual is
+    returned rather than assumed, because an attribution that does not add up to
+    the thing being attributed is not an allocation.
+    """
+    n = len(channels)
+    cover = None
+    if v is None:
+        v, cover = subset_closure_values(journeys, conversions, channels)
+    w = _weights(n)
+    popcount = [bin(m).count("1") for m in range(1 << n)]
+    vals = np.zeros(n)
+    for i in range(n):
+        bit = 1 << i
+        for m in range(1 << n):
+            if m & bit:
+                continue
+            vals[i] += w[popcount[m]] * (v[m | bit] - v[m])
+    return dict(credit=_share(vals, channels),
+                raw={c: float(vals[i]) for i, c in enumerate(channels)},
+                efficiency_residual=float(vals.sum() - (v[(1 << n) - 1] - v[0])),
+                grand_value=float(v[(1 << n) - 1]),
+                coverage=cover)
+
+
+def shapley_sampled_closure(journeys, conversions, channels, n_perms: int = 400,
+                            seed: int = 0, v=None) -> dict:
+    """The SAME Monte-Carlo estimator, over the value function defined
+    everywhere. Nothing about the sampling changed; only the game it samples.
+
+    `stalls` is reported and should be zero by construction. A sampler that
+    cannot stall is one whose error is variance -- and variance is the only kind
+    of error more permutations buy anything against.
+    """
+    n = len(channels)
+    if v is None:
+        v, _ = subset_closure_values(journeys, conversions, channels)
+    rng = np.random.default_rng(seed)
+    contrib = np.zeros((n_perms, n))
+    stalls = 0
+    for p in range(n_perms):
+        order = rng.permutation(n)
+        m = 0
+        prev = v[0]
+        for c in order:
+            nm = m | (1 << int(c))
+            contrib[p, int(c)] = v[nm] - prev
+            prev = v[nm]
+            m = nm
+    mean = contrib.mean(axis=0)
+    sd = contrib.std(axis=0, ddof=1)
+    return dict(credit=_share(mean, channels),
+                raw={c: float(mean[i]) for i, c in enumerate(channels)},
+                se={c: float(sd[i] / np.sqrt(n_perms))
+                    for i, c in enumerate(channels)},
+                n_perms=n_perms, stalls=stalls)
+
+
+def shapley_per_journey(journeys, conversions, channels,
+                        max_journey_channels: int = 20) -> dict:
+    """Shapley computed INSIDE each journey and averaged across journeys.
+
+    This is the second fix and it is not the same fix. It changes what the
+    lattice IS: a journey with five touches has 32 sub-coalitions whether the
+    catalogue holds 12 channels or 300, so cost is set by JOURNEY LENGTH rather
+    than by channel count -- which is the thing that was supposed to force
+    sampling in the first place.
+
+    The value function is the same subset closure -- v(T) = the conversion rate
+    among journeys whose channel set is a subset of T -- but it is built on each
+    journey's OWN lattice, one zeta transform over k bits instead of one over n.
+    That gives the identical numbers, because "journeys whose set is a subset of
+    T" does not depend on which journey T came from, and it never allocates 2^n.
+
+    > The first version of this called `subset_closure_values` for its value
+    > function, which materialises 2^n. On the 12-channel panel that is 4,096 and
+    > invisible; the test that runs it at 30 channels asked for 8 GiB. The
+    > estimator whose entire claim is that it does not depend on channel count
+    > was depending on channel count, and the claim was in the docstring for a
+    > full run before a test disagreed with it.
+
+    Each journey's value is divided among its own touches exactly, so the
+    per-journey values sum to v(S_j) by efficiency. Memoised on the channel set,
+    because 15,238 journeys share far fewer distinct sets.
+    """
+    idx = {c: i for i, c in enumerate(channels)}
+    n = len(channels)
+    exact_cnt, exact_conv = Counter(), Counter()
+    set_counts = Counter()
+    for j, y in zip(journeys, conversions):
+        m = 0
+        for ch in j:
+            i = idx.get(ch)
+            if i is not None:
+                m |= 1 << i
+        exact_cnt[m] += 1
+        exact_conv[m] += float(y)
+        set_counts[m] += 1
+
+    popcount = {}
+
+    def pc(x):
+        if x not in popcount:
+            popcount[x] = bin(x).count("1")
+        return popcount[x]
+
+    total = np.zeros(n)
+    n_j = 0
+    max_k = 0
+    evaluations = 0
+    cache = {}
+    for S, cnt in set_counts.items():
+        if S not in cache:
+            members = [i for i in range(n) if S & (1 << i)]
+            k = len(members)
+            if k > max_journey_channels:
+                raise ValueError(
+                    "journey touches %d distinct channels; the exact per-journey "
+                    "lattice is 2^%d. Raise max_journey_channels deliberately or "
+                    "sample within the journey." % (k, k))
+            max_k = max(max_k, k)
+            size = 1 << k
+            tc = np.zeros(size)
+            vc = np.zeros(size)
+            # exact-set counts for every subset of S, on LOCAL bit positions
+            for local in range(size):
+                g = 0
+                for t, b in enumerate(members):
+                    if local & (1 << t):
+                        g |= 1 << b
+                c_ = exact_cnt.get(g)
+                if c_:
+                    tc[local] += c_
+                    vc[local] += exact_conv[g]
+            # zeta transform over k bits -> subset-closure totals
+            for t in range(k):
+                bit = 1 << t
+                for local in range(size):
+                    if local & bit:
+                        tc[local] += tc[local ^ bit]
+                        vc[local] += vc[local ^ bit]
+            vloc = np.zeros(size)
+            nz = tc > 0
+            vloc[nz] = vc[nz] / tc[nz]
+            vloc[0] = 0.0
+            w = _weights(k) if k else []
+            out = np.zeros(n)
+            for t, b in enumerate(members):
+                bit = 1 << t
+                for local in range(size):
+                    if local & bit:
+                        continue
+                    out[b] += w[pc(local)] * (vloc[local | bit] - vloc[local])
+                    evaluations += 1
+            cache[S] = out
+        total += cache[S] * cnt
+        n_j += cnt
+    mean = total / max(n_j, 1)
+    return dict(credit=_share(mean, channels),
+                raw={c: float(mean[i]) for i, c in enumerate(channels)},
+                distinct_sets=len(set_counts),
+                max_journey_channels=max_k,
+                lattice_per_journey=1 << max_k,
+                evaluations=evaluations,
+                mean_value=float(mean.sum()))
+
+
+def convergence_curve(estimator, exact_credit, channels,
+                      perm_counts=(25, 50, 100, 200, 400, 800), seed: int = 0,
+                      n_reps: int = 12):
+    """Mean absolute deviation from an exact answer, by sample count.
+
+    `estimator(n_perms, seed) -> credit dict`, so the same curve runs for either
+    value function and the two are directly comparable. That comparability is the
+    point: one curve alone cannot distinguish "converging slowly" from "converged
+    to the wrong number".
+
+    AVERAGED OVER `n_reps` SEEDS, and that is not a detail. A single-seed curve
+    of a Monte-Carlo estimator is itself a Monte-Carlo draw. One seed came out
+    non-monotone (100 permutations beat 200) with a headline ratio of 8.10x
+    against a theoretical ceiling of 5.66x; six seeds still read 6.44x. A rate
+    ABOVE the 1/sqrt(n) ceiling is not a fast estimator, it is an unconverged
+    measurement of an estimator, and it took twelve seeds for the ratio to settle
+    just underneath the ceiling where it belongs.
+
+    The number of seeds needed to measure a convergence rate is itself a thing
+    that has to be checked, which is the same lesson one level up.
+    """
+    out = []
+    for m in perm_counts:
+        errs, maxes = [], []
+        for r in range(n_reps):
+            est = estimator(m, seed + r)
+            devs = [abs(est[c] - exact_credit.get(c, 0.0)) for c in channels]
+            errs.append(float(np.mean(devs)))
+            maxes.append(float(max(devs)))
+        out.append(dict(n_perms=m,
+                        mean_abs_error=float(np.mean(errs)),
+                        max_abs_error=float(np.mean(maxes)),
+                        n_reps=n_reps))
     return out
 
 

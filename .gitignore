@@ -2,6 +2,7 @@
 # own generator with its fixed seed. Committing it would add megabytes and
 # invite the reader to trust a file instead of the script that made it.
 data/
+bi_export/
 *.parquet
 *.npy
 *.db

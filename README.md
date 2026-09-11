@@ -20,6 +20,44 @@ python -m pytest tests -q    # 69 tests
 8,000 customers, 89,540 transactions, **15,238 journeys (1.9 per customer)**,
 **12 channels**, 730 days.
 
+## Published dashboard (Looker Studio)
+
+**Live, shareable (unlisted — no sign-in required):**
+https://lookerstudio.google.com/reporting/97a07987-f61e-4930-9219-fa5d02c239cc
+
+Three pages, one per result area, built on CSVs exported straight from the
+pipeline:
+
+- **Segmentation** — customers, churn rate, and share of predicted value by
+  segment. The story the numbers tell: segment 0 is 7.6% of customers but 37% of
+  value at 31% churn; segments 1 and 3 are 45% of customers holding under 4% of
+  value at ~93% churn.
+- **CLV** — predicted-CLV index by acquisition channel (which channels bring
+  higher-value customers; spread 0.94–1.08).
+- **Attribution** — each method's credit split across the 12 channels, so the
+  disagreement between methods (and against planted truth) is visible at a
+  glance.
+
+The data is exported by `export_bi.py`, which reads the pipeline's own metric
+JSON and recomputes the customer-level frames with the **same** `src.clv`
+functions the report uses — and **asserts** its recomputed segment sizes match
+the report before writing, so the dashboard cannot silently drift from the
+analysis:
+
+```bash
+python export_bi.py          # writes bi_export/*.csv (17 tidy files)
+```
+
+Chosen over Tableau Public / Power BI because it reaches a public link fastest:
+100% browser-based (no desktop authoring app), free with a Google account, and
+link-sharing is native. Every figure on the dashboard is something the code
+produced — no estimates.
+
+> **Honest limit:** the three page tabs are still named "Untitled Page" in the
+> nav — the connector's context-menu items would not accept scripted clicks, so
+> the page-level labels are unset. The report title, chart titles, and all data
+> are correct.
+
 ## A pipeline, not three scripts
 
 ```

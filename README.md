@@ -98,6 +98,56 @@ would run on Snowflake with a profile change. What is absent is everything about
 a warehouse that is hard — concurrency, cost governance, permissions, incremental
 strategies at scale.
 
+## Orchestration: the 120-line runner vs Airflow
+
+The section above says installing Airflow would "demonstrate that Airflow
+installs." So here it is, ported and **run** rather than asserted. The same DAG
+(`land_raw → dbt_build → read_marts`) is expressed as an Airflow DAG
+(`airflow/dags/cas_pipeline.py`), kept **alongside** the hand-built runner in
+`src/pipeline.py` — each Airflow task wraps the identical function the runner
+calls, so it is a change of orchestrator, not of logic.
+
+**It runs, measured:** `airflow dags test cas_pipeline` executed all three tasks
+green and `read_marts` returned **customer_rfm = 7,894, customer_holdout = 2,847**
+— the same marts the hand-built runner produces — with `dbt_build` taking ~54s.
+
+**Getting it to run is itself the first finding.** Airflow is POSIX-only and
+supports Python ≤3.12, so it will **not install on this Windows + Python 3.14 box**
+(nor on the WSL Ubuntu, which is also on 3.14). It ran under a `uv`-provisioned
+Python 3.12 venv inside WSL. The 120-line runner needs none of that: one file,
+standard library only, runs anywhere Python does.
+
+**What Airflow handles that the 120 lines didn't:**
+
+- Scheduling & backfill (cron / data-intervals, catchup) — the runner is on-demand.
+- Per-task retries with backoff (the runner had a flat count, only for idempotent tasks).
+- A metadata DB + UI: task history, logs, durations, run states, and re-running a
+  single failed task — the runner prints and forgets.
+- Parallelism via pluggable executors (Local / Celery / Kubernetes) — the runner is sequential.
+- Connections/hooks/pools, secrets, SLAs & alerting, XCom passing — none of which the runner models.
+
+**What it added in complexity:**
+
+- A whole runtime — metadata database + scheduler + (optionally) webserver: three
+  services vs zero.
+- A heavy, version-pinned dependency tree (installed via Airflow's official
+  constraints file) and a hard OS / Python-version constraint that stopped it
+  running natively here at all.
+- Config surface (`AIRFLOW_HOME`, executor, DB) and operator boilerplate for a
+  three-task DAG the runner expressed in ~120 lines.
+
+**The honest read** matches the runner's original comment: at this size Airflow's
+value is latent — you pay its operational cost now for scheduling, observability
+and parallelism you do not yet need. The port earns its keep the day this pipeline
+needs a schedule, a shared UI, or a cluster; until then the 120 lines are the right
+tool — now shown both ways, not asserted.
+
+```bash
+# Airflow needs a Python <=3.12 interpreter (Linux / WSL / Docker); see the DAG docstring.
+export AIRFLOW__CORE__DAGS_FOLDER="$PWD/airflow/dags"
+airflow db migrate && airflow dags test cas_pipeline 2025-01-01
+```
+
 ## The same transformations on PySpark — a documented negative result
 
 The five dbt models are also implemented on **local Spark**

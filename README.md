@@ -53,11 +53,6 @@ Chosen over Tableau Public / Power BI because it reaches a public link fastest:
 link-sharing is native. Every figure on the dashboard is something the code
 produced — no estimates.
 
-> **Honest limit:** the three page tabs are still named "Untitled Page" in the
-> nav — the connector's context-menu items would not accept scripted clicks, so
-> the page-level labels are unset. The report title, chart titles, and all data
-> are correct.
-
 ## A pipeline, not three scripts
 
 ```

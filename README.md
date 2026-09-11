@@ -148,6 +148,50 @@ export AIRFLOW__CORE__DAGS_FOLDER="$PWD/airflow/dags"
 airflow db migrate && airflow dags test cas_pipeline 2025-01-01
 ```
 
+## Running on Snowflake — a profile change, verified statically
+
+The models run on DuckDB but are written as portable dbt. A `snowflake` target in
+`dbt/profiles.yml` runs the **same** models, graph and tests on Snowflake with no
+model edits (`dbt build --target snowflake`), after loading the raw tables with
+`land_snowflake.py` — which reuses the same `raw_frames()` the DuckDB loader uses,
+so both warehouses get byte-identical inputs.
+
+**Verified without an account.** `check_snowflake_portability.py` transpiles every
+compiled model from the DuckDB dialect to the Snowflake dialect with sqlglot:
+**12/12 model files transpile with zero errors** (2 staging + 3 marts + 7 generated
+test queries), and `tests/test_snowflake_portability.py` pins it. That is a static
+guarantee that no DuckDB-only construct leaked into a model — turning the "would
+run on Snowflake" claim into a check. It is not a live run.
+
+**Not run live — honestly.** A Snowflake free trial needs an account (and card
+verification) that can't be created here, so there are no live Snowflake numbers.
+The exact path once an account exists:
+
+```bash
+export SNOWFLAKE_ACCOUNT=... SNOWFLAKE_USER=... SNOWFLAKE_PASSWORD=...
+python land_snowflake.py                  # loads raw tables (reuses raw_frames)
+cd dbt && dbt build --target snowflake    # same 5 models + 10 tests, on Snowflake
+```
+
+**DuckDB vs Snowflake vs Redshift — where they differ:**
+
+| | DuckDB (this repo) | Snowflake | Redshift |
+|---|---|---|---|
+| runs as | in-process, one file | managed cloud service | managed cloud cluster |
+| scaling | one machine's RAM/cores | elastic virtual warehouses; compute/storage separated | node cluster (RA3 separates storage) |
+| concurrency | single process | multi-cluster, auto-suspend/resume | WLM queues + concurrency scaling |
+| cost | free | per-second warehouse credits | per-hour nodes |
+| dialect | near-standard | standard + rich semi-structured (VARIANT) | Postgres-derived; some function gaps |
+| this data (8k customers, 160k rows) | ~0.1s (measured) | seconds + credits + network round-trips | similar + cluster overhead |
+
+Only the DuckDB timing and the 12/12 transpile result are measured; the
+Snowflake/Redshift cells are qualitative, not benchmarked (no accounts). The
+honest read matches the Airflow one: at this scale a cloud warehouse buys nothing
+the embedded engine doesn't already do faster and for free — Snowflake and
+Redshift earn their keep on concurrency, governance, and data that outgrows one
+machine. Portable dbt is what makes the switch a profile change rather than a
+rewrite.
+
 ## The same transformations on PySpark — a documented negative result
 
 The five dbt models are also implemented on **local Spark**

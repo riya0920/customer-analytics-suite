@@ -9,3 +9,17 @@ retail_customer_analytics:
       type: duckdb
       path: ../data/warehouse.duckdb
       threads: 4
+    # The whole substitution the comment above promises: the SAME models, graph
+    # and tests run on Snowflake by selecting this target
+    # (`dbt build --target snowflake`). Credentials come from the environment; no
+    # model edits. Load the raw tables first with `python land_snowflake.py`.
+    snowflake:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE', 'SYSADMIN') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE', 'CUSTOMER_ANALYTICS') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE', 'COMPUTE_WH') }}"
+      schema: "{{ env_var('SNOWFLAKE_SCHEMA', 'main') }}"
+      threads: 4

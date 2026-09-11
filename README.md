@@ -98,6 +98,53 @@ would run on Snowflake with a profile change. What is absent is everything about
 a warehouse that is hard — concurrency, cost governance, permissions, incremental
 strategies at scale.
 
+## The same transformations on PySpark — a documented negative result
+
+The five dbt models are also implemented on **local Spark**
+(`src/pipeline_spark.py`), kept **alongside** the dbt/DuckDB path, not replacing
+it. The staging + mart logic is written as SQL strings that run **unchanged on
+both engines**, so the port is provably the same transformation rather than a
+lookalike — `tests/test_spark.py` asserts the Spark marts equal, row for row,
+what dbt actually materialised into the warehouse (**75 tests pass**, up from 69:
+the six new ones are the three dbt singular tests re-expressed on Spark output,
+plus cross-engine parity). Getting there surfaced one real dialect trap: Spark
+parses `1.0` as `DECIMAL`, so `avg(...)` silently rounded `discount_rate` to five
+places and disagreed with DuckDB's `double` until the summands were cast to
+`double`. The parity test is what caught it.
+
+**Benchmark, same 89,540 transactions + 70,709 touches, one run on this machine
+(2 cores, Arrow enabled):**
+
+| path | startup | transform | peak memory |
+|---|---|---|---|
+| **DuckDB** (in-process, same SQL) | — | **0.10 s** | **141 MB** |
+| **Spark** `local[*]` (Arrow) | 10.3 s (JVM) | 3.0 s warm · 11.7 s cold | 1,137 MB |
+| dbt build (subprocess, orchestrated) | — | 16.8 s | 184 MB |
+
+**DuckDB wins decisively at this scale, and that is the interesting finding.** Even
+after the JVM is warm, Spark's transform is ~30× slower (3.0 s vs 0.10 s) and it
+holds ~8× the memory (1.1 GB vs 141 MB); cold, you also pay ~10 s just to start
+the JVM — per job. The reason is not that Spark is bad; it is that ~160k rows fit
+in L3-cache-sized working sets where a vectorised single-node engine has no
+coordination to do, and Spark's fixed costs (JVM, task scheduling, shuffle
+plumbing, pandas↔JVM serialisation) are pure overhead with nothing to amortise
+them against.
+
+**Where the port would flip to Spark's favour:** when the data no longer fits in
+one machine's memory (tens of GB+), when the transform must spill to disk, or when
+it already lives in a cluster/lakehouse (S3 + Spark) and moving it out to a
+single node would cost more than the compute. None of those hold here, so forcing
+Spark would be cargo-culting — the honest artifact is the measurement that says
+so. The value of the port is that the transformations translate cleanly to the
+Spark SQL/DataFrame API and the crossover cost is now measured, not guessed.
+
+```bash
+# optional: needs a Java 17+ runtime; pyspark is not in requirements.txt
+pip install pyspark
+python bench_spark_vs_dbt.py      # runtimes + peak memory, asserts parity first
+python -m pytest tests/test_spark.py -q
+```
+
 ## Choosing k — six criteria, five answers
 
 | criterion | k |

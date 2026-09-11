@@ -53,15 +53,17 @@ WAREHOUSE = os.path.join(DATA, "warehouse.duckdb")
 
 
 # --------------------------------------------------------------------------
-# landing
+# raw frames -- one builder, so every engine transforms identical inputs
 # --------------------------------------------------------------------------
-def land(db_path: str = WAREHOUSE) -> dict:
-    """Load the generator's artifacts into DuckDB as `raw` tables.
+def raw_frames():
+    """Build the (transactions, touches) raw frames from the generator artifacts.
 
-    Loading is a Python step on purpose. dbt is a transformation tool, and using
-    it for ingestion is how an ELT ends up with no L that anyone can point at.
+    Factored out so the DuckDB path (`land`) and the Spark path
+    (`src/pipeline_spark.py`) start from byte-identical inputs -- otherwise a
+    benchmark between them is not a benchmark of two engines on the same data,
+    it is a benchmark of two slightly different datasets.
     """
-    import duckdb
+    import pandas as pd
     txn = np.load(os.path.join(DATA, "transactions.npy"))
     with open(os.path.join(DATA, "journeys.json")) as f:
         jd = json.load(f)
@@ -73,6 +75,28 @@ def land(db_path: str = WAREHOUSE) -> dict:
         jidx = jd.get("journey_index", [0] * len(jd["journeys"]))[jid]
         for pos, (ch, d) in enumerate(zip(js, days)):
             rows.append((jid, cid, jidx, pos, ch, float(d), bool(y)))
+
+    tx_df = pd.DataFrame(txn, columns=["customer_id", "t_days", "order_value",
+                                       "n_categories", "used_discount"])
+    tx_df = tx_df.astype({"customer_id": "int32", "n_categories": "int32"})
+    tx_df["used_discount"] = tx_df["used_discount"].astype(bool)
+    touch_df = pd.DataFrame(rows, columns=["journey_id", "customer_id",
+                                           "journey_index", "position",
+                                           "channel", "touch_day", "converted"])
+    return tx_df, touch_df
+
+
+# --------------------------------------------------------------------------
+# landing
+# --------------------------------------------------------------------------
+def land(db_path: str = WAREHOUSE) -> dict:
+    """Load the generator's artifacts into DuckDB as `raw` tables.
+
+    Loading is a Python step on purpose. dbt is a transformation tool, and using
+    it for ingestion is how an ELT ends up with no L that anyone can point at.
+    """
+    import duckdb
+    tx_df, touch_df = raw_frames()
 
     if os.path.exists(db_path):
         os.remove(db_path)          # rebuild from source; see `Task.idempotent`
@@ -91,14 +115,6 @@ def land(db_path: str = WAREHOUSE) -> dict:
     # Worth stating as a general point rather than a fix: reaching for the
     # row-oriented API on a columnar store is the most common way a warehouse
     # load ends up slower than the CSV it replaced.
-    import pandas as pd
-    tx_df = pd.DataFrame(txn, columns=["customer_id", "t_days", "order_value",
-                                       "n_categories", "used_discount"])
-    tx_df = tx_df.astype({"customer_id": "int32", "n_categories": "int32"})
-    tx_df["used_discount"] = tx_df["used_discount"].astype(bool)
-    touch_df = pd.DataFrame(rows, columns=["journey_id", "customer_id",
-                                           "journey_index", "position",
-                                           "channel", "touch_day", "converted"])
     con.register("tx_df", tx_df)
     con.register("touch_df", touch_df)
     con.execute("CREATE TABLE transactions AS SELECT * FROM tx_df")

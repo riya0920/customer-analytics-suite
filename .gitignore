@@ -28,7 +28,8 @@ Thumbs.db
 # Large regenerable artifacts
 out/*.pkl
 out/*.log
-out/bench_spark.json   # timing artifact; varies per run, numbers live in README
+# timing artifact; varies per run, numbers live in the README
+out/bench_spark.json
 data/*.duckdb
 dbt/target/
 dbt/logs/

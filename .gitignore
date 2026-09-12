@@ -33,3 +33,6 @@ out/bench_spark.json
 data/*.duckdb
 dbt/target/
 dbt/logs/
+
+# Databricks upload artifacts (regenerate: python databricks/export_raw_csv.py)
+databricks/data/

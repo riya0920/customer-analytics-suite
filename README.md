@@ -250,6 +250,42 @@ python bench_spark_vs_dbt.py      # runtimes + peak memory, asserts parity first
 python -m pytest tests/test_spark.py -q
 ```
 
+### The same PySpark path on Databricks
+
+`databricks/cas_marts_databricks.py` runs the **identical** staging + mart SQL on
+Databricks instead of local Spark — a notebook that copies the `pipeline_spark`
+SQL verbatim and asserts the same parity (**7,894 / 2,847 / 303**, no leakage).
+`databricks/export_raw_csv.py` writes the two raw CSVs to upload.
+
+**What changes vs the local `spark_session()` path:**
+
+- No `SparkSession` is created — Databricks provides `spark`; no JVM/JDK to install,
+  no `local[*]` master, a managed cluster instead.
+- Data is read from a **volume / DBFS** with `spark.read.csv`, not built from a
+  pandas frame via `createDataFrame` — so no pandas↔JVM serialisation on ingest.
+- The Databricks Runtime pins the Spark + Python versions (and may add Photon), vs
+  the `uv`-provisioned local stack.
+
+| path | transform | status |
+|---|---|---|
+| DuckDB (in-process) | **0.10 s** | measured |
+| local Spark (`local[*]`, Arrow) | 3.0 s warm / 11.7 s cold | measured |
+| Databricks (Free Edition) | *run the notebook to record* | account-gated (below) |
+
+**Honest gate:** the Databricks cell is **not filled with a number**, because
+Databricks (Community/Free Edition) needs an account that can't be created from
+here — the same rule as the Azure and Snowflake sections: no fabricated figure.
+The notebook prints `transform wall-clock`; run it and drop the value into the row.
+The expectation to *test*, not assume: a cold managed/serverless cluster's start-up
+dominates at 160k rows, so it should land slower than local Spark and far slower
+than DuckDB — the local finding, one rung further out.
+
+```bash
+python databricks/export_raw_csv.py    # -> databricks/data/{transactions,touches}.csv
+# upload both CSVs to a Databricks volume, import databricks/cas_marts_databricks.py,
+# then Run All and read the printed transform wall-clock.
+```
+
 ## Choosing k - six criteria, five answers
 
 | criterion | k |

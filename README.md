@@ -270,15 +270,21 @@ SQL verbatim and asserts the same parity (**7,894 / 2,847 / 303**, no leakage).
 |---|---|---|
 | DuckDB (in-process) | **0.10 s** | measured |
 | local Spark (`local[*]`, Arrow) | 3.0 s warm / 11.7 s cold | measured |
-| Databricks (Free Edition) | *run the notebook to record* | account-gated (below) |
+| Databricks (Free Edition, serverless) | **40.13 s** | measured |
 
-**Honest gate:** the Databricks cell is **not filled with a number**, because
-Databricks (Community/Free Edition) needs an account that can't be created from
-here - the same rule as the Azure and Snowflake sections: no fabricated figure.
-The notebook prints `transform wall-clock`; run it and drop the value into the row.
-The expectation to *test*, not assume: a cold managed/serverless cluster's start-up
-dominates at 160k rows, so it should land slower than local Spark and far slower
-than DuckDB - the local finding, one rung further out.
+**The prediction held.** Run on Databricks Free Edition serverless, the identical
+transform takes **40.13 s** - and asserts the same parity (**7,894 / 2,847 / 303**,
+no leakage), so it is provably the same work, not a faster shortcut. That is ~13x
+slower than local Spark warm (3.0 s) and ~400x slower than DuckDB (0.10 s): the
+managed/serverless platform's fixed costs - session acquisition, remote volume
+reads, query planning and shuffle over the network - dominate at 160k rows, which
+is the local finding one rung further out. The point isn't that Databricks is
+"slow" - it is built for data three-plus orders of magnitude larger, where those
+fixed costs amortise and a single node can't fit the data at all - it's that
+reaching for it *at this scale* buys latency, not throughput. (Measured in one
+serverless run; the figure varies run to run with session warmth, but the
+order-of-magnitude gap does not. The number was recorded, per the repo's rule -
+no cell is filled with an estimate.)
 
 ```bash
 python databricks/export_raw_csv.py    # -> databricks/data/{transactions,touches}.csv

@@ -542,6 +542,33 @@ unobserved common cause of exposure and outcome, none of them *can*. That is a
 theorem, not a limitation of these implementations, and it is why the geo holdout
 is the only instrument that answers the question at all.
 
+## Uplift - who to target, graded against a known CATE
+
+Average effects tell you whether to run a campaign; **uplift** tells you *who to
+target*, and that is where a budget actually moves. `python -m src.uplift` plants
+a treatment whose effect **varies** across customers - high-intent buyers get a
+large positive lift, and a low-intent **"sleeping dogs"** segment is actively
+hurt - then grades a T-learner and an S-learner against the known per-customer
+`tau(x)`. The average effect is ~0 by design, so the whole value is in the
+heterogeneity: the oracle that ranks by the true effect earns **+0.057** mean
+true-tau in its top decile against **+0.001** for random targeting.
+
+| learner | Spearman(pred, true tau) | Qini (fraction of oracle) | top-decile true tau: model / random / oracle |
+| --- | --- | --- | --- |
+| T-learner | 0.205 | -0.640 | +0.0224 / +0.0013 / +0.0573 |
+| S-learner | 0.675 | 0.665 | +0.0330 / +0.0013 / +0.0573 |
+
+The honest result is that **the S-learner beats the T-learner here**, which cuts
+against the usual "T-learner is the flexible default for heterogeneity" heuristic.
+With a near-zero base signal the T-learner differences two independently-fit
+models whose errors do not cancel, and its ranking ends up *worse than random* on
+Qini (-0.640) even though its very top decile still beats random. The S-learner,
+carrying treatment as a feature, captures two-thirds of the oracle's Qini. Qini
+is reported as a fraction of the oracle because the raw Qini coefficient is
+ill-conditioned when the ATE is ~0 (its usual normaliser goes to zero) - and
+individual treatment effects are noisy even under randomisation, so the rank
+correlation is moderate, not near-1. That ceiling is reported, not tuned past.
+
 ## What is deliberately not here
 
 - **Real touch data with ground truth does not exist and cannot**, because the

@@ -1,0 +1,7 @@
+method,mae,credit_to_zero_effect
+shapley,0.0292,0.1065
+linear,0.0344,0.09
+time_decay,0.0345,0.119
+last_touch,0.062,0.1996
+first_touch,0.0772,0.0163
+markov_removal,0.1082,0.1166

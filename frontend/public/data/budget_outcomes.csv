@@ -1,0 +1,8 @@
+allocation,conversions,conversions_lost_vs_truth,pct_conversions_lost,spend_on_zero_effect,customer_value,pct_value_lost
+last_touch,2415.9,358.4,12.917,299.34,358780.0,12.553
+first_touch,2534.9,239.4,8.629,24.44,373482.0,8.969
+linear,2668.9,105.4,3.8,134.94,394823.0,3.768
+time_decay,2676.9,97.4,3.512,178.46,396356.0,3.394
+markov_removal,1637.6,1136.7,40.973,174.95,241271.0,41.194
+shapley,2722.6,51.7,1.864,159.69,402614.0,1.869
+TRUTH,2774.3,0.0,0.0,0.0,410281.0,0.0

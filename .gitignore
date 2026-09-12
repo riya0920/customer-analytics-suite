@@ -2,6 +2,9 @@
 # own generator with its fixed seed. Committing it would add megabytes and
 # invite the reader to trust a file instead of the script that made it.
 data/
+# ...except the dashboard's static data assets: the deployed React app in
+# frontend/ needs these exported CSVs bundled, so re-include that one folder.
+!frontend/public/data/
 bi_export/
 *.parquet
 *.npy

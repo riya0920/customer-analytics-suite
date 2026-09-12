@@ -1,12 +1,10 @@
 # Generated data -- every file here is reproducible by running the project's
 # own generator with its fixed seed. Committing it would add megabytes and
 # invite the reader to trust a file instead of the script that made it.
-data/
-# ...except anything under the React app in frontend/: it has both a source
-# module folder (src/data/) and bundled data assets (public/data/) that the
-# bare data/ rule above would otherwise swallow. Re-include every data/ dir
-# nested under frontend/.
-!frontend/**/data/
+# Anchored to the repo root: a bare `data/` also matched nested source folders
+# named data (frontend/src/data, java-api/.../data, frontend/public/data), so
+# only the top-level generated dir is ignored here.
+/data/
 bi_export/
 *.parquet
 *.npy

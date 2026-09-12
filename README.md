@@ -64,6 +64,14 @@ only, native link-sharing); the Tableau Public version was added so the exact
 "Tableau" keyword is covered too. Both read the same `bi_export/` CSVs, so every
 figure on either dashboard is something the code produced - no estimates.
 
+**Power BI** — build steps in [`docs/POWERBI.md`](docs/POWERBI.md), over the same
+`bi_export/` CSVs. Public link: _pending publish_ — the report builds in Power BI
+Desktop (free), but a public "Publish to web" URL needs a Power BI **service**
+account, which requires a work/school email (consumer Gmail cannot register). The
+build and publish steps are documented; the link goes here once published. Why
+Tableau/Looker were done first: both reach a free public URL from any account in
+the browser, which Power BI's public path does not.
+
 For a code-native, offline view of the same attribution result:
 
 ```bash

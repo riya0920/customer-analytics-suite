@@ -1,4 +1,4 @@
-# DATA-1 — Customer Analytics: Segmentation → CLV → Attribution
+# DATA-1 Customer Analytics: Segmentation → CLV → Attribution
 
 **Complete against the spec.** Three questions on one dataset with the handoffs
 computed, attribution validated against known ground truth, **a real dbt pipeline

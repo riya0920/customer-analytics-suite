@@ -244,7 +244,20 @@ places and disagreed with DuckDB's `double` until the summands were cast to
 |---|---|---|---|
 | **DuckDB** (in-process, same SQL) | - | **0.10 s** | **141 MB** |
 | **Spark** `local[*]` (Arrow) | 10.3 s (JVM) | 3.0 s warm · 11.7 s cold | 1,137 MB |
+| **Databricks** (Community, managed cluster) | cluster-managed | _pending run — `databricks/`_ | - |
 | dbt build (subprocess, orchestrated) | - | 16.8 s | 184 MB |
+
+The **same** `build_marts_spark` SQL runs on a real Databricks cluster via
+[`databricks/customer_analytics_databricks.py`](databricks/customer_analytics_databricks.py)
+(Community Edition, free; setup in [`databricks/README.md`](databricks/README.md)).
+The notebook re-asserts the DuckDB↔Spark parity on the cluster, times the
+transform, and prints the number to paste into the row above. What to expect
+versus local Spark: the managed cluster moves the JVM cold-start off your laptop,
+but the steady-state transform is still Spark's fixed costs (task scheduling,
+shuffle plumbing, pandas↔JVM serialisation) over ~160k rows with nothing to
+amortise them against — so the negative finding should hold, now confirmable on
+managed infrastructure rather than only `local[*]`. (Row left blank until run on a
+real cluster — no fabricated number.)
 
 **DuckDB wins decisively at this scale, and that is the interesting finding.** Even
 after the JVM is warm, Spark's transform is ~30× slower (3.0 s vs 0.10 s) and it

@@ -1,6 +1,6 @@
 # DATA-1 Customer Analytics: Segmentation → CLV → Attribution
 
-**Complete against the spec.** Three questions on one dataset with the handoffs
+Three questions on one dataset with the handoffs
 computed, attribution validated against known ground truth, **a real dbt pipeline
 with a leakage test that fails the build**, k chosen rather than asserted,
 **Shapley at twelve channels with its sampled approximation checked and then
@@ -23,7 +23,7 @@ python -m pytest tests -q    # 69 tests
 ## Published dashboards (Tableau Public + Looker Studio)
 
 The same three result areas are published as an interactive dashboard on **two**
-BI platforms — pick whichever a given job posting names.
+BI platforms - pick whichever a given job posting names.
 
 **Tableau Public** (three tabs: Segmentation, CLV, Attribution; no sign-in to view):
 https://public.tableau.com/app/profile/riya.ashokbhai.soni/viz/CustomerAnalytics-SegmentationCLVAttribution/Segmentation
@@ -253,16 +253,16 @@ python -m pytest tests/test_spark.py -q
 ### The same PySpark path on Databricks
 
 `databricks/cas_marts_databricks.py` runs the **identical** staging + mart SQL on
-Databricks instead of local Spark — a notebook that copies the `pipeline_spark`
+Databricks instead of local Spark - a notebook that copies the `pipeline_spark`
 SQL verbatim and asserts the same parity (**7,894 / 2,847 / 303**, no leakage).
 `databricks/export_raw_csv.py` writes the two raw CSVs to upload.
 
 **What changes vs the local `spark_session()` path:**
 
-- No `SparkSession` is created — Databricks provides `spark`; no JVM/JDK to install,
+- No `SparkSession` is created - Databricks provides `spark`; no JVM/JDK to install,
   no `local[*]` master, a managed cluster instead.
 - Data is read from a **volume / DBFS** with `spark.read.csv`, not built from a
-  pandas frame via `createDataFrame` — so no pandas↔JVM serialisation on ingest.
+  pandas frame via `createDataFrame` - so no pandas↔JVM serialisation on ingest.
 - The Databricks Runtime pins the Spark + Python versions (and may add Photon), vs
   the `uv`-provisioned local stack.
 
@@ -274,11 +274,11 @@ SQL verbatim and asserts the same parity (**7,894 / 2,847 / 303**, no leakage).
 
 **Honest gate:** the Databricks cell is **not filled with a number**, because
 Databricks (Community/Free Edition) needs an account that can't be created from
-here — the same rule as the Azure and Snowflake sections: no fabricated figure.
+here - the same rule as the Azure and Snowflake sections: no fabricated figure.
 The notebook prints `transform wall-clock`; run it and drop the value into the row.
 The expectation to *test*, not assume: a cold managed/serverless cluster's start-up
 dominates at 160k rows, so it should land slower than local Spark and far slower
-than DuckDB — the local finding, one rung further out.
+than DuckDB - the local finding, one rung further out.
 
 ```bash
 python databricks/export_raw_csv.py    # -> databricks/data/{transactions,touches}.csv
@@ -554,3 +554,18 @@ is the only instrument that answers the question at all.
 - **The generator is still a model.** BG/NBD is fitted to a BG/NBD process, and
   the confounder is one I chose - a real system has many, correlated, and none of
   them documented.
+
+## Spec coverage
+
+What the original brief asked for, and whether it is in this project:
+
+| Asked for | In this project? |
+|---|---|
+| Use a real transactional dataset with a simulated multi-channel touch layer that has known channel effects | Partial - the touch layer is simulated with known effects as required; the transaction base is also simulated rather than Olist/UCI |
+| RFM plus behavioral clustering, with bootstrap-stability validation | Yes |
+| Prove segments actually predict future behavior (forward-test into the next period) | Yes |
+| Probabilistic CLV (BG/NBD + Gamma-Gamma) validated on a temporal holdout, plus a GBM challenger | Yes |
+| CLV deciles wired back into segments (the value-concentration curve) | Yes |
+| All five attribution methods including Markov, each scored against the simulator's known truth | Yes |
+| An incrementality demo: plant a channel that causes nothing, show every method over-credit it, and sketch the experiment that could settle it | Yes |
+| A 2-page executive memo plus a reproducible dbt pipeline | Yes |

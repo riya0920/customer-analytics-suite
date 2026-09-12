@@ -3,13 +3,13 @@
 # MAGIC # Customer-analytics marts on Databricks
 # MAGIC
 # MAGIC The **same** staging + mart transformations as the local Spark path
-# MAGIC (`src/pipeline_spark.py`) and the dbt/DuckDB path — the SQL below is copied
+# MAGIC (`src/pipeline_spark.py`) and the dbt/DuckDB path - the SQL below is copied
 # MAGIC verbatim from `pipeline_spark.STAGING_SQL` / `mart_sql`, so this is a change
 # MAGIC of *where Spark runs*, not of the logic. Kept alongside the local path.
 # MAGIC
 # MAGIC **What changed vs local `spark_session()` (documented in the repo README):**
-# MAGIC - No `SparkSession.builder…getOrCreate()` — Databricks provides `spark`.
-# MAGIC - No JVM/JDK to install and no `local[*]` master — a managed cluster.
+# MAGIC - No `SparkSession.builder…getOrCreate()` - Databricks provides `spark`.
+# MAGIC - No JVM/JDK to install and no `local[*]` master - a managed cluster.
 # MAGIC - Data is read from a **volume / DBFS** with `spark.read.csv`, not built from
 # MAGIC   a pandas frame via `createDataFrame` (so no pandas↔JVM serialisation on the
 # MAGIC   way in).
@@ -113,7 +113,7 @@ assert n_holdout == 2847, n_holdout
 assert n_channel == 303, n_channel
 # leakage guard, as in the dbt singular test + tests/test_spark.py
 assert customer_holdout.filter("holdout_last_day <= %d" % CAL).count() == 0
-print("PARITY OK — Databricks marts match the DuckDB/local-Spark marts "
+print("PARITY OK - Databricks marts match the DuckDB/local-Spark marts "
       "(7894 / 2847 / 303, no leakage).")
 
 # COMMAND ----------
@@ -122,6 +122,6 @@ print("PARITY OK — Databricks marts match the DuckDB/local-Spark marts "
 # MAGIC Record the printed `transform wall-clock` in the repo README's benchmark
 # MAGIC table, next to DuckDB and local Spark. Expect it to be **slower** than local
 # MAGIC Spark for a cold cluster (managed cluster / serverless start-up dominates at
-# MAGIC 160k rows) and far slower than DuckDB — the same finding as the local
+# MAGIC 160k rows) and far slower than DuckDB - the same finding as the local
 # MAGIC benchmark, one more rung out: the managed platform's fixed costs only pay off
 # MAGIC at data sizes this dataset is nowhere near.

@@ -5,7 +5,7 @@
 the main README ("Orchestration: the 120-line runner vs Airflow") for the
 comparison and the measured run.
 
-Airflow is **not** in the project's `requirements.txt` — it is a heavy, Linux-only
+Airflow is **not** in the project's `requirements.txt` - it is a heavy, Linux-only
 dependency with a hard Python ≤3.12 constraint, so it stays optional.
 
 ## Run it (Python ≤3.12, on Linux / WSL / Docker)
@@ -32,5 +32,5 @@ airflow dags test cas_pipeline 2025-01-01
 ```
 
 Expected: all three tasks succeed and `read_marts` returns
-`{'customer_rfm': 7894, 'customer_holdout': 2847}` — the same marts the hand-built
+`{'customer_rfm': 7894, 'customer_holdout': 2847}` - the same marts the hand-built
 runner produces.

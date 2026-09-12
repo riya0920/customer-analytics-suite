@@ -1,5 +1,5 @@
 """
-The customer-analytics pipeline as an Airflow DAG — a port of the hand-built
+The customer-analytics pipeline as an Airflow DAG - a port of the hand-built
 120-line runner in ``src/pipeline.py`` (the ``DAG`` / ``Task`` classes), kept
 ALONGSIDE it, not replacing it.
 

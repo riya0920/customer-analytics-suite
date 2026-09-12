@@ -1,9 +1,9 @@
 # Customer Analytics Dashboard (React + TypeScript)
 
 A front end over the `customer-analytics-suite` pipeline outputs. It answers the
-three questions the pipeline was built for — **who** the customers are
+three questions the pipeline was built for - **who** the customers are
 (segmentation), **what** they are worth (CLV), and **which channels earned it**
-(attribution) — reading the exported model results directly rather than
+(attribution) - reading the exported model results directly rather than
 re-deriving or hard-coding any figure.
 
 **Live:** https://riya0920.github.io/customer-analytics-suite/
@@ -24,14 +24,14 @@ npm run build      # production build to dist/
 |---|---|---|
 | **Segmentation** | `segments.csv`, `k_selection.csv` | Value share per segment, a value-concentration (Lorenz) curve, the segment table with forward-tested holdout outcomes, and the k-selection stability curve behind `k = 5` |
 | **CLV** | `clv_by_channel.csv`, `clv_summary.csv`, `clv_model_comparison.csv`, `clv_per_customer.csv` | Predicted-CLV distribution over all 8,000 customers, BG/NBD + Gamma-Gamma vs the GBM challenger, and value by acquiring channel (sortable) |
-| **Attribution** | `attribution_credit_long.csv`, `method_scores.csv`, `budget_outcomes.csv` | Per-method credit vs known truth, an accuracy scatter (MAE vs credit wrongly given to the zero-effect channel), and what each method costs in conversions — including the planted zero-effect control every method over-credits |
+| **Attribution** | `attribution_credit_long.csv`, `method_scores.csv`, `budget_outcomes.csv` | Per-method credit vs known truth, an accuracy scatter (MAE vs credit wrongly given to the zero-effect channel), and what each method costs in conversions - including the planted zero-effect control every method over-credits |
 
 ## Architecture decisions
 
 - **The pipeline is the source of truth; the UI only presents.** The exported
   CSVs are copied verbatim into `public/data/` and shipped as static assets. The
   UI computes *presentation-layer* aggregates only (a Lorenz curve, a histogram,
-  sorting) — all in `src/data/transforms.ts`, as pure functions, so those numbers
+  sorting) - all in `src/data/transforms.ts`, as pure functions, so those numbers
   are unit-tested without rendering. No model logic is re-implemented here, which
   keeps the front end honest: if a figure is wrong, it is wrong in the pipeline.
 
@@ -57,7 +57,7 @@ npm run build      # production build to dist/
 - **State management, scoped to what needs it.** Global (context + reducer): the
   loaded dataset and its lifecycle. Local (`useState`): the active tab and
   per-view controls (attribution method, channel sort). Server-state libraries
-  (React Query, Redux) would be overkill for a single one-shot static load — the
+  (React Query, Redux) would be overkill for a single one-shot static load - the
   data never changes after mount.
 
 - **Typed, reusable presentational components.** `DataTable<T>`, `StatCard`,
@@ -70,12 +70,12 @@ npm run build      # production build to dist/
 
 `npm test` runs four suites (30 assertions):
 
-- `csv.test.ts` — the parser against quoted/escaped/CRLF/BOM edge cases.
-- `transforms.test.ts` — the Lorenz curve, histogram binning/clipping, and
+- `csv.test.ts` - the parser against quoted/escaped/CRLF/BOM edge cases.
+- `transforms.test.ts` - the Lorenz curve, histogram binning/clipping, and
   attribution helpers, with numbers checked by hand.
-- `loaders.test.ts` — the typed parsers against sample strings copied verbatim
+- `loaders.test.ts` - the typed parsers against sample strings copied verbatim
   from the real exports (pins the column names).
-- `App.test.tsx` — renders the app with an injected dataset and asserts the
+- `App.test.tsx` - renders the app with an injected dataset and asserts the
   loading→ready→error states and tab switching (Testing Library + jsdom).
 
 CI (`.github/workflows/ci.yml`) typechecks, tests, and builds the frontend on

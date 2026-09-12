@@ -1,0 +1,3 @@
+# The Maven wrapper is a POSIX shell script; keep LF so it stays executable on
+# CI/Linux regardless of the checkout's autocrlf setting.
+mvnw text eol=lf

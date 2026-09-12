@@ -9,3 +9,4 @@ sqlglot
 fastapi
 uvicorn
 httpx
+plotly>=5.20          # src/plotly_view.py: interactive attribution view

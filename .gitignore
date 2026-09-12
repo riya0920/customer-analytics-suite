@@ -39,3 +39,6 @@ dbt/logs/
 
 # Databricks upload artifacts (regenerate: python databricks/export_raw_csv.py)
 databricks/data/
+
+# generated Plotly view (regenerate with python -m src.plotly_view)
+out/attribution_plotly.html

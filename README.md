@@ -64,6 +64,18 @@ only, native link-sharing); the Tableau Public version was added so the exact
 "Tableau" keyword is covered too. Both read the same `bi_export/` CSVs, so every
 figure on either dashboard is something the code produced - no estimates.
 
+For a code-native, offline view of the same attribution result:
+
+```bash
+python -m src.plotly_view     # writes out/attribution_plotly.html (self-contained Plotly)
+```
+
+`src.plotly_view` recomputes the credited share each method assigns per channel
+(the same `src.attribution` functions the report uses) and renders a grouped bar
+of every method against the TRUTH row, annotating the planted zero-effect channel
+that every observational method over-credits. The HTML bundles Plotly inline, so
+it opens with no server and no network.
+
 ## A pipeline, not three scripts
 
 ```

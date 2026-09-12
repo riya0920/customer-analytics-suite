@@ -2,9 +2,11 @@
 # own generator with its fixed seed. Committing it would add megabytes and
 # invite the reader to trust a file instead of the script that made it.
 data/
-# ...except the dashboard's static data assets: the deployed React app in
-# frontend/ needs these exported CSVs bundled, so re-include that one folder.
-!frontend/public/data/
+# ...except anything under the React app in frontend/: it has both a source
+# module folder (src/data/) and bundled data assets (public/data/) that the
+# bare data/ rule above would otherwise swallow. Re-include every data/ dir
+# nested under frontend/.
+!frontend/**/data/
 bi_export/
 *.parquet
 *.npy

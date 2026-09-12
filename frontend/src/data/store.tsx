@@ -11,7 +11,7 @@ import {
   useReducer,
   type ReactNode,
 } from "react";
-import { loadDataset } from "./loaders";
+import { loadDataset } from "./source";
 import type { Dataset } from "./types";
 
 export type DataState =

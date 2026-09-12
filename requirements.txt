@@ -5,3 +5,7 @@ pytest
 scikit-learn
 scipy
 sqlglot
+# REST API (api/) serving the dashboard data
+fastapi
+uvicorn
+httpx

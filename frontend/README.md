@@ -26,6 +26,25 @@ npm run build      # production build to dist/
 | **CLV** | `clv_by_channel.csv`, `clv_summary.csv`, `clv_model_comparison.csv`, `clv_per_customer.csv` | Predicted-CLV distribution over all 8,000 customers, BG/NBD + Gamma-Gamma vs the GBM challenger, and value by acquiring channel (sortable) |
 | **Attribution** | `attribution_credit_long.csv`, `method_scores.csv`, `budget_outcomes.csv` | Per-method credit vs known truth, an accuracy scatter (MAE vs credit wrongly given to the zero-effect channel), and what each method costs in conversions - including the planted zero-effect control every method over-credits |
 
+## Data source: static or the REST API
+
+The dashboard has two interchangeable data sources, chosen in
+`src/data/source.ts`:
+
+- **static** (default) — reads the CSVs bundled under `public/data/`. This is what
+  the GitHub Pages deploy uses, so the site is self-contained.
+- **API** — set `VITE_API_BASE` and it fetches from the FastAPI service in `api/`
+  instead (paging `/api/clv/customers` to completion). Same typed `Dataset`, same
+  charts, but every figure arrives over HTTP.
+
+```bash
+# full-stack: API on :8000, dashboard pointed at it
+uvicorn api.main:app --port 8000            # from repo root
+VITE_API_BASE=http://localhost:8000 npm run dev
+```
+
+See [`../api/README.md`](../api/README.md) for the full-stack flow diagram.
+
 ## Architecture decisions
 
 - **The pipeline is the source of truth; the UI only presents.** The exported

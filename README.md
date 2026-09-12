@@ -272,19 +272,19 @@ SQL verbatim and asserts the same parity (**7,894 / 2,847 / 303**, no leakage).
 | local Spark (`local[*]`, Arrow) | 3.0 s warm / 11.7 s cold | measured |
 | Databricks (Free Edition, serverless) | **40.13 s** | measured |
 
-**The prediction held.** Run on Databricks Free Edition serverless, the identical
-transform takes **40.13 s** - and asserts the same parity (**7,894 / 2,847 / 303**,
-no leakage), so it is provably the same work, not a faster shortcut. That is ~13x
-slower than local Spark warm (3.0 s) and ~400x slower than DuckDB (0.10 s): the
-managed/serverless platform's fixed costs - session acquisition, remote volume
-reads, query planning and shuffle over the network - dominate at 160k rows, which
-is the local finding one rung further out. The point isn't that Databricks is
-"slow" - it is built for data three-plus orders of magnitude larger, where those
-fixed costs amortise and a single node can't fit the data at all - it's that
-reaching for it *at this scale* buys latency, not throughput. (Measured in one
-serverless run; the figure varies run to run with session warmth, but the
-order-of-magnitude gap does not. The number was recorded, per the repo's rule -
-no cell is filled with an estimate.)
+On Databricks Free Edition serverless the same transform takes 40.13 s, with the
+same parity (7,894 / 2,847 / 303, no leakage). It is the same work, not a
+shortcut. That is about 13x slower than local Spark warm (3.0 s) and about 400x
+slower than DuckDB (0.10 s). At 160k rows the platform's fixed costs are what you
+pay for: acquiring a session, reading from the remote volume, planning the query,
+moving data across the network. This is the local benchmark result again, one step
+further out.
+
+Databricks is not slow. It is built for data thousands of times larger, where
+those fixed costs disappear into the run and a single machine cannot hold the data
+at all. At this size it only adds latency. The figure is one serverless run and
+will move around with how warm the session is, but the order of magnitude will
+not. It is recorded, not estimated.
 
 ```bash
 python databricks/export_raw_csv.py    # -> databricks/data/{transactions,touches}.csv
@@ -452,12 +452,12 @@ the value function, not of the problem.**
 | exact-set | 0.0292 |
 | sampled (old) | 0.0466 |
 
-**Read that carefully.** Both fixes beat what they replaced, but they are not two
-approximations of one number - they are two different questions. Closure asks what
-a channel adds to what is *achievable*; per-journey asks how each observed
-journey's outcome divides among the touches that were in it. Nothing makes them
-agree, and reporting whichever scored better without saying they measure different
-things would be **picking an estimand by leaderboard**.
+Both fixes beat what they replaced, but they are not two approximations of one
+number. They answer two different questions. Closure asks what a channel adds to
+what is achievable. Per-journey asks how each observed journey's outcome divides
+among the touches that were in it. Nothing makes them agree, and reporting
+whichever scored better without saying they measure different things would be
+picking an estimand by leaderboard.
 
 And the zero-effect channel is still credited **0.0812** under closure and
 **0.0690** per journey. **Fixing the estimator does not fix the data** - the same

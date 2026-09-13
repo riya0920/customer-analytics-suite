@@ -2,7 +2,7 @@
 
 A typed REST layer over the `customer-analytics-suite` outputs. It serves the same
 exported results the dashboard reads (segmentation, CLV, attribution) as JSON, so
-a browser front end — or the Java service in Sprint 2 Task 4 — can consume them
+a browser front end, or the Java service in Sprint 2 Task 4, can consume them
 over HTTP instead of reading CSVs directly.
 
 **Stack:** FastAPI + Pydantic (typed responses + OpenAPI), stdlib `csv` for
@@ -21,8 +21,8 @@ The data directory is resolved at startup in this order, so it works both from a
 fresh clone and from a working tree that has just run the pipeline:
 
 1. `$CAS_DATA_DIR` (if set)
-2. `<repo>/bi_export` — the pipeline's own output (`python export_bi.py`)
-3. `<repo>/frontend/public/data` — the committed copy the dashboard also ships
+2. `<repo>/bi_export`: the pipeline's own output (`python export_bi.py`)
+3. `<repo>/frontend/public/data`: the committed copy the dashboard also ships
 
 ## Endpoints
 
@@ -47,9 +47,9 @@ are generated from the same types the data layer produces.
 
 All errors share one body shape: `{"error": "<reason>", "detail": "<message>"}`.
 
-- **404** — unknown `method` on `/api/attribution/credit`, or unknown `segment`
+- **404**: unknown `method` on `/api/attribution/credit`, or unknown `segment`
   on `/api/clv/customers` (the message lists the known values).
-- **422** — invalid query params (e.g. `limit=0` or `limit>1000`), normalised
+- **422**: invalid query params (e.g. `limit=0` or `limit>1000`), normalised
   from FastAPI's validation errors into the same shape.
 
 ```bash
@@ -77,7 +77,7 @@ curl -s "localhost:8000/api/attribution/credit?method=bogus"
 
 The React app has two interchangeable data sources (`frontend/src/data/source.ts`):
 
-- **static** (default): reads the bundled CSVs — keeps the GitHub Pages build
+- **static** (default): reads the bundled CSVs, keeps the GitHub Pages build
   self-contained.
 - **API**: set `VITE_API_BASE` and it fetches from this service instead, paging
   through `/api/clv/customers` to completion. CORS allows the Vite dev origins.
@@ -85,10 +85,10 @@ The React app has two interchangeable data sources (`frontend/src/data/source.ts
 Run the whole stack locally:
 
 ```bash
-# terminal 1 — the API
+# terminal 1: the API
 uvicorn api.main:app --port 8000
 
-# terminal 2 — the dashboard, pointed at the API
+# terminal 2: the dashboard, pointed at the API
 cd frontend
 VITE_API_BASE=http://localhost:8000 npm run dev
 ```
@@ -105,5 +105,5 @@ python -m pytest tests/test_api.py -q   # 15 tests
 
 `tests/test_api.py` drives the app with `TestClient` over the committed data and
 covers every endpoint, pagination, the segment/method filters, both error paths
-(404 + 422), and that the OpenAPI schema is served — so it runs in CI without the
+(404 + 422), and that the OpenAPI schema is served, so it runs in CI without the
 pipeline having been run.

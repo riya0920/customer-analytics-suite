@@ -2,7 +2,7 @@
 
 The load-bearing checks are (a) the generator really plants heterogeneity with a
 near-zero average effect and a negative "sleeping dogs" segment, and (b) the
-oracle that ranks by the true tau genuinely beats random — if that ceiling is not
+oracle that ranks by the true tau genuinely beats random. If that ceiling is not
 there, no learner score below it means anything.
 """
 import os

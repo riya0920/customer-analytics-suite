@@ -31,9 +31,9 @@ npm run build      # production build to dist/
 The dashboard has two interchangeable data sources, chosen in
 `src/data/source.ts`:
 
-- **static** (default) — reads the CSVs bundled under `public/data/`. This is what
+- **static** (default): reads the CSVs bundled under `public/data/`. This is what
   the GitHub Pages deploy uses, so the site is self-contained.
-- **API** — set `VITE_API_BASE` and it fetches from the FastAPI service in `api/`
+- **API**: set `VITE_API_BASE` and it fetches from the FastAPI service in `api/`
   instead (paging `/api/clv/customers` to completion). Same typed `Dataset`, same
   charts, but every figure arrives over HTTP.
 

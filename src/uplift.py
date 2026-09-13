@@ -4,8 +4,8 @@
 
 Average treatment effects tell you whether to run a campaign; **uplift** tells
 you *who to target*, which is the question that actually moves a budget. This
-module plants a treatment whose effect VARIES across customers — including a
-"sleeping dogs" segment the treatment actively hurts — then asks whether a
+module plants a treatment whose effect VARIES across customers, including a
+"sleeping dogs" segment the treatment actively hurts, then asks whether a
 T-learner and an S-learner can recover that heterogeneity from a randomised
 experiment.
 
@@ -16,7 +16,7 @@ observable here only because the data is generated:
     customers by how much the treatment helps them?),
   * a **Qini coefficient** relative to the oracle that ranks by true tau,
   * the **policy value** of targeting the top decile by predicted uplift versus
-    random versus the oracle — the number a marketer would act on.
+    random versus the oracle, the number a marketer would act on.
 
 Because assignment is randomised, there is no confounding to defeat; the honest
 difficulty is that individual treatment effects are noisy, and where the models
@@ -47,7 +47,7 @@ def simulate(n: int = 20000, seed: int = 0) -> dict:
     ``recency`` (standardised). Baseline conversion rises with both. The true
     CATE is ``tau(x) = 0.18*intent - 0.05`` clipped into a sensible range, so
     high-intent customers get a large positive lift while the lowest-intent
-    customers are **sleeping dogs** — the campaign lowers their conversion. The
+    customers are **sleeping dogs**: the campaign lowers their conversion. The
     per-customer tau is returned as ground truth.
     """
     rng = np.random.default_rng(seed)
@@ -76,7 +76,7 @@ def _fit_prob(X, y, seed):
 
 
 def t_learner(Xtr, Ttr, ytr, Xte, seed=0) -> np.ndarray:
-    """Two models — one per arm — and uplift is their predicted-probability gap."""
+    """Two models, one per arm, and uplift is their predicted-probability gap."""
     mt = _fit_prob(Xtr[Ttr == 1], ytr[Ttr == 1], seed)
     mc = _fit_prob(Xtr[Ttr == 0], ytr[Ttr == 0], seed + 1)
     return mt.predict_proba(Xte)[:, 1] - mc.predict_proba(Xte)[:, 1]
@@ -207,7 +207,7 @@ def to_markdown(rep: dict) -> str:
     lines.append(
         "Targeting the top decile by predicted uplift should beat random and "
         "approach the oracle's true-tau. Individual CATE is noisy even under "
-        "randomisation, so the rank correlation is moderate, not near-1 — the "
+        "randomisation, so the rank correlation is moderate, not near-1, the "
         "honest ceiling for this problem, reported rather than inflated."
     )
     return "\n".join(lines)

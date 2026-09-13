@@ -1,7 +1,7 @@
 // Alternate data source: assemble the same typed Dataset from the FastAPI REST
 // API (api/) instead of the bundled CSVs. Selected at build/run time by
 // VITE_API_BASE (see source.ts). The endpoints already return JSON in the row
-// shapes declared in types.ts, so this maps mostly by fetching — except
+// shapes declared in types.ts, so this maps mostly by fetching, except
 // /api/clv/customers, which is paginated and is walked to completion here.
 
 import type {

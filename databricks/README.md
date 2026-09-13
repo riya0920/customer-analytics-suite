@@ -7,9 +7,9 @@ cluster, to add the third row to the benchmark table in the repo README.
 ## Steps
 
 1. **Sign up** for Databricks Community Edition at
-   `community.cloud.databricks.com` — free, no credit card.
+   `community.cloud.databricks.com`: free, no credit card.
 2. **Create a cluster.** Community gives one single-node cluster. Note its
-   **runtime version** (e.g. `15.4 LTS`, Spark 3.5) and driver type — those go in
+   **runtime version** (e.g. `15.4 LTS`, Spark 3.5) and driver type; those go in
    the README row.
 3. **Clone the repo.** Repos → *Add Repo* →
    `https://github.com/riya0920/customer-analytics-suite`.
@@ -29,5 +29,5 @@ cluster, to add the third row to the benchmark table in the repo README.
 
 Databricks Community requires an interactive account and a hosted cluster; there
 is no unattended/API path on the free tier. So the notebook and steps are here,
-and the measured number is filled in after a run — the row stays blank rather
+and the measured number is filled in after a run; the row stays blank rather
 than carrying an invented figure.

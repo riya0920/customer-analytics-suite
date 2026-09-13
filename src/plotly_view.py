@@ -9,7 +9,7 @@ table as an interactive grouped bar chart: for every channel, the true effect
 share next to what each method credits it. The gap between a method's bar and
 the TRUTH bar is the method's error; the planted **zero-effect channel**
 (``retargeting``) is annotated, because every observational method over-credits
-it — attribution is not incrementality.
+it. Attribution is not incrementality.
 
 Self-contained HTML (Plotly bundled inline), so it opens offline with no server.
 Requires the generated data (``python -m src.generate``).

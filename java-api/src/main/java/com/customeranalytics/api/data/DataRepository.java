@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Loads every exported CSV into typed records once at startup and answers queries
- * over them in memory — the same read-only-over-a-static-export design as the
+ * over them in memory: the same read-only-over-a-static-export design as the
  * FastAPI service.
  *
  * <p>The data directory is resolved in this order so the app runs both from a

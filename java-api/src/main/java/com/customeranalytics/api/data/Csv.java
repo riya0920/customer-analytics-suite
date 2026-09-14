@@ -9,7 +9,7 @@ import java.util.Map;
  * A small, dependency-free CSV reader. The exported files are well formed but
  * include quoted headers with commas (e.g. "Spearman (rank, holdout)" in
  * clv_summary.csv), so a naive split on ',' is wrong. This handles double-quoted
- * fields, escaped quotes ("") and CRLF/LF line endings — the same contract as the
+ * fields, escaped quotes ("") and CRLF/LF line endings: the same contract as the
  * hand-written parsers in ../api/data.py and ../frontend/src/data/csv.ts.
  */
 public final class Csv {

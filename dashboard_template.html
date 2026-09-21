@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Customer Analytics</title>
+<meta name="description" content="Segmentation, lifetime value and marketing attribution on real UK online-retail transactions.">
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --card: #ffffff;
+  --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,0.10);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
+  --good: #0ca30c; --warn: #fab219; --crit: #d03b3b;
+  --good-ink: #006300; --crit-ink: #b02a2a;
+  --chip: #f0efec;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --card: #1a1a19;
+    --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+    --good-ink: #0ca30c; --crit-ink: #e66767; --chip: #262624;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --card: #1a1a19;
+  --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+  --good-ink: #0ca30c; --crit-ink: #e66767; --chip: #262624;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--page); color: var(--ink);
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.wrap { max-width: 1120px; margin: 0 auto; padding: 40px 16px 64px; }
+header .eyebrow { color: var(--muted); font-size: 13px; letter-spacing: .04em; text-transform: uppercase; }
+h1 { font-size: 30px; line-height: 1.2; margin: 6px 0 10px; letter-spacing: -.01em; }
+.lede { color: var(--ink-2); max-width: 760px; margin: 0; font-size: 16px; }
+.meta { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; }
+.pill { font-size: 12.5px; color: var(--ink-2); background: var(--chip); border-radius: 999px; padding: 3px 10px; }
+.pill a { color: inherit; }
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 28px 0 8px; }
+.kpi { background: var(--card); border: 1px solid var(--ring); border-radius: 12px; padding: 16px 18px; }
+.kpi .v { font-size: 30px; font-weight: 650; letter-spacing: -.01em; line-height: 1.1; }
+.kpi .l { color: var(--ink-2); font-size: 13.5px; margin-top: 6px; }
+.kpi .s { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+section { margin-top: 40px; }
+h2 { font-size: 20px; margin: 0 0 4px; letter-spacing: -.005em; }
+.q { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .04em; }
+.sub { color: var(--ink-2); margin: 2px 0 14px; max-width: 780px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.card { background: var(--card); border: 1px solid var(--ring); border-radius: 12px; padding: 18px 18px 14px; min-width: 0; }
+.card h3 { font-size: 15px; margin: 0 0 2px; }
+.card .cap { color: var(--ink-2); font-size: 13.5px; margin: 0 0 10px; }
+.note { color: var(--ink-2); font-size: 13.5px; border-top: 1px solid var(--grid); margin-top: 10px; padding-top: 10px; }
+.note b { color: var(--ink); }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12.5px; color: var(--ink-2); margin: 4px 0 6px; }
+.legend i { display: inline-block; vertical-align: middle; margin-right: 6px; }
+.key-line { width: 16px; height: 2px; border-radius: 2px; }
+.key-dot { width: 9px; height: 9px; border-radius: 50%; }
+.key-area { width: 14px; height: 10px; border-radius: 3px; }
+.seg { display: inline-flex; flex-wrap: wrap; max-width: 100%; background: var(--chip); border-radius: 8px; padding: 3px; gap: 2px; margin-bottom: 8px; }
+.seg button { font: inherit; font-size: 13px; border: 0; background: transparent; color: var(--ink-2); padding: 4px 12px; border-radius: 6px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--card); color: var(--ink); box-shadow: 0 0 0 1px var(--ring); font-weight: 600; }
+svg { display: block; width: 100%; height: auto; overflow: visible; }
+svg text { font-family: inherit; }
+.ax { fill: var(--muted); font-size: 11px; }
+.axl { fill: var(--ink-2); font-size: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th { text-align: left; font-weight: 600; color: var(--ink-2); font-size: 12px; border-bottom: 1px solid var(--axis); padding: 6px 8px; white-space: nowrap; }
+td { border-bottom: 1px solid var(--grid); padding: 7px 8px; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+.tbl { overflow-x: auto; }
+.badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.badge.late { color: var(--crit-ink); }
+.badge.ok { color: var(--good-ink); }
+.mono { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12.5px; }
+.decisions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.dec { background: var(--card); border: 1px solid var(--ring); border-radius: 12px; padding: 16px; }
+.dec .n { color: var(--muted); font-size: 12px; font-weight: 600; }
+.dec h3 { font-size: 15px; margin: 4px 0 6px; }
+.dec p { margin: 0; color: var(--ink-2); font-size: 13.5px; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.stat .v { font-size: 22px; font-weight: 650; }
+.stat .l { color: var(--ink-2); font-size: 13px; }
+#tip {
+  position: fixed; pointer-events: none; z-index: 10; opacity: 0; transition: opacity .08s;
+  background: var(--card); color: var(--ink); border: 1px solid var(--ring); border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.14); padding: 8px 10px; font-size: 12.5px; min-width: 140px;
+}
+#tip .t { color: var(--muted); font-size: 11.5px; margin-bottom: 4px; }
+#tip .r { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+#tip .r span { color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; }
+#tip .r b { font-variant-numeric: tabular-nums; }
+footer { margin-top: 48px; color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--grid); padding-top: 16px; }
+footer a { color: var(--ink-2); }
+.theme { position: absolute; top: 16px; right: 16px; }
+.theme button { font: inherit; font-size: 12.5px; border: 1px solid var(--ring); background: var(--card); color: var(--ink-2); border-radius: 8px; padding: 4px 10px; cursor: pointer; }
+@media (max-width: 860px) {
+  .kpis { grid-template-columns: repeat(2, 1fr); }
+  .grid2, .decisions, .stats { grid-template-columns: 1fr; }
+  h1 { font-size: 24px; }
+}
+</style>
+
+<style>
+.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.step { background: var(--chip); border-radius: 10px; padding: 12px 14px; }
+.step .v { font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.step .l { color: var(--ink-2); font-size: 12.5px; }
+.step .d { color: var(--muted); font-size: 12px; margin-top: 4px; }
+.pill.real { color: var(--good-ink); }
+#segTable th { white-space: normal; vertical-align: bottom; }
+#segTable td:first-child { white-space: nowrap; }
+@media (max-width: 860px) { .steps { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<div class="theme"><button id="themeBtn" type="button">Theme</button></div>
+<div class="wrap">
+<header>
+  <div class="eyebrow">Customer analytics · UK online retailer, Dec 2009 to Dec 2011</div>
+  <h1>Who are the customers, what are they worth, and which ads work?</h1>
+  <p class="lede">Two years of real transactions from a UK online gift retailer (UCI Online Retail II).
+  Customers are segmented, their future spend is predicted and checked against what really happened,
+  and seven ad-attribution methods are tested against a known answer.</p>
+  <div class="meta">
+    <span class="pill real">✓ Real transactions: UCI Online Retail II</span>
+    <span class="pill" id="h-meta"></span>
+    <span class="pill">Ad journeys simulated (the only way to know the true answer)</span>
+    <span class="pill"><a href="https://github.com/riya0920/customer-analytics-suite">Code on GitHub</a></span>
+  </div>
+</header>
+
+<div class="kpis" id="kpis"></div>
+
+<section>
+  <div class="q">0 · The data</div>
+  <h2>From 1 million raw invoice lines to clean purchase history</h2>
+  <p class="sub">Every cleaning rule is counted. Models learn on the first 18 months and are scored on the last ~6 months, which they never saw.</p>
+  <div class="card"><div class="steps" id="steps"></div></div>
+</section>
+
+<section>
+  <div class="q">1 · Who are the customers?</div>
+  <h2>Five segments, and a few customers carry the value</h2>
+  <div class="grid2">
+    <div class="card">
+      <h3>Share of customers vs share of predicted value</h3>
+      <p class="cap">Segments are formed on the first 18 months.</p>
+      <div class="legend">
+        <span><i class="key-area" style="background:var(--s2)"></i>Share of customers</span>
+        <span><i class="key-area" style="background:var(--s1)"></i>Share of predicted value</span>
+      </div>
+      <div id="segChart"></div>
+    </div>
+    <div class="card">
+      <h3>Do the segments predict the next 6 months?</h3>
+      <p class="cap" id="segCap"></p>
+      <div class="tbl"><table id="segTable"></table></div>
+      <div class="note" id="segNote"></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="q">2 · What is each customer worth?</div>
+  <h2>Lifetime value: good at ranking, off at the extremes</h2>
+  <div class="grid2">
+    <div class="card">
+      <h3>Predicted ÷ actual spend, by predicted-value decile</h3>
+      <p class="cap">1.0 means the prediction matched what customers really spent in the test period.</p>
+      <div class="legend">
+        <span><i class="key-area" style="background:var(--s2)"></i>Over-predicts</span>
+        <span><i class="key-area" style="background:var(--s1)"></i>Under-predicts</span>
+      </div>
+      <div id="decChart"></div>
+    </div>
+    <div class="card">
+      <h3>BG/NBD + Gamma-Gamma vs gradient boosting</h3>
+      <p class="cap">Same customers, same 6-month test period.</p>
+      <div class="tbl"><table id="modelTable"></table></div>
+      <div class="stats" id="clvStats" style="margin-top:14px"></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="q">3 · Which ads work?</div>
+  <h2>Every method credits the channel that does nothing</h2>
+  <p class="sub"><b>Retargeting</b> was built with zero real effect and shown to people already about to buy.
+  The correct credit for it is 0%.</p>
+  <div class="grid2">
+    <div class="card">
+      <h3>Credit each method gives the zero-effect channel</h3>
+      <p class="cap" id="zeroCap"></p>
+      <div id="zeroChart"></div>
+    </div>
+    <div class="card">
+      <h3>Value of the customers each channel reaches</h3>
+      <p class="cap">1.0 = average customer value across channels. Weighting by value would favour retargeting most.</p>
+      <div class="legend">
+        <span><i class="key-area" style="background:var(--s2)"></i>Zero-effect channel</span>
+        <span><i class="key-area" style="background:var(--s1)"></i>Other channels</span>
+      </div>
+      <div id="valChart"></div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h3>What each method does to a £45,000 budget</h3>
+    <p class="cap">Budget split by each method's credit, then scored against the true channel effects.</p>
+    <div class="tbl"><table id="budgetTable"></table></div>
+  </div>
+</section>
+
+<section>
+  <div class="q">4 · What we decided</div>
+  <h2>Decisions and why</h2>
+  <div class="decisions" id="decisions"></div>
+</section>
+
+<footer>
+  Transactions: UCI Machine Learning Repository, Online Retail II (Chen, 2019). The ad journeys are simulated for
+  the same real customers, so every attribution method can be scored against a known answer. Every number on this
+  page is read from the pipeline's output by <span class="mono">build_dashboard.py</span>.
+  <a href="https://github.com/riya0920/customer-analytics-suite">Source and how to run it</a>.
+</footer>
+</div>
+<div id="tip" role="status" aria-live="polite"></div>
+
+<script>
+const D = /*__DATA__*/null;
+const NS = "http://www.w3.org/2000/svg";
+const $ = (id) => document.getElementById(id);
+const fmt = (n, d = 0) => Number(n).toLocaleString("en-GB", { maximumFractionDigits: d, minimumFractionDigits: d });
+const pct = (x, d = 0) => fmt(x * 100, d) + "%";
+const gbp = (n) => "£" + fmt(n);
+function el(tag, attrs = {}, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function h(tag, props = {}, parent) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === "text") e.textContent = v; else if (k === "cls") e.className = v; else e.setAttribute(k, v);
+  }
+  if (parent) parent.appendChild(e);
+  return e;
+}
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const tip = $("tip");
+function showTip(evt, title, rows) {
+  tip.replaceChildren();
+  h("div", { cls: "t", text: title }, tip);
+  for (const [label, value, color] of rows) {
+    const r = h("div", { cls: "r" }, tip);
+    const s = h("span", {}, r);
+    if (color) { const k = h("i", { cls: "key-line" }, s); k.style.background = color; k.style.display = "inline-block"; }
+    s.appendChild(document.createTextNode(label));
+    h("b", { text: value }, r);
+  }
+  tip.style.left = Math.min(evt.clientX + 14, innerWidth - tip.offsetWidth - 8) + "px";
+  tip.style.top = Math.min(evt.clientY + 14, innerHeight - tip.offsetHeight - 8) + "px";
+  tip.style.opacity = 1;
+}
+const hideTip = () => { tip.style.opacity = 0; };
+function table(host, head, rows, numeric) {
+  const hr = h("tr", {}, h("thead", {}, host));
+  head.forEach((c, i) => h("th", { text: c, cls: numeric[i] ? "n" : "" }, hr));
+  const tb = h("tbody", {}, host);
+  rows.forEach((r) => { const tr = h("tr", {}, tb); r.forEach((c, i) => {
+    const td = h("td", { cls: numeric[i] ? "n" : "" }, tr);
+    if (c instanceof Node) td.appendChild(c); else td.textContent = c; }); });
+}
+function roundedBar(svg, x0, y, w, bh, fill) {
+  w = Math.max(w, 2); const r = Math.min(4, w / 2);
+  return el("path", { d: `M${x0},${y} h${w - r} a${r},${r} 0 0 1 ${r},${r} v${bh - 2 * r} a${r},${r} 0 0 1 -${r},${r} h-${w - r} z`, fill }, svg);
+}
+// horizontal bar chart: rows [{label, value, color, tipRows}]
+function hbars(host, rows, { max, fmtV, W = 520, L = 150, bh = 18, gap = 12, ref = null, refLabel = "" }) {
+  const R = 56, T = 18, B = 22, H = T + B + rows.length * (bh + gap);
+  const pw = W - L - R, x = (v) => L + (pw * v) / max;
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img" }, host);
+  for (let t = 0; t <= 4; t++) {
+    const v = (max * t) / 4;
+    el("line", { x1: x(v), x2: x(v), y1: T, y2: H - B, stroke: t ? "var(--grid)" : "var(--axis)" }, svg);
+    el("text", { x: x(v), y: H - 6, "text-anchor": "middle", class: "ax" }, svg).textContent = fmtV(v, true);
+  }
+  rows.forEach((r, i) => {
+    const y = T + i * (bh + gap) + gap / 2;
+    el("text", { x: L - 10, y: y + bh / 2 + 4, "text-anchor": "end", class: "axl" }, svg).textContent = r.label;
+    roundedBar(svg, x(0), y, x(r.value) - x(0), bh, r.color);
+    el("text", { x: x(r.value) + 6, y: y + bh / 2 + 4, class: "axl" }, svg).textContent = fmtV(r.value);
+    const hit = el("rect", { x: 0, y: y - gap / 2, width: W, height: bh + gap, fill: "transparent" }, svg);
+    hit.addEventListener("pointermove", (e) => showTip(e, r.label, r.tipRows));
+    hit.addEventListener("pointerleave", hideTip);
+  });
+  if (ref != null) {
+    el("line", { x1: x(ref), x2: x(ref), y1: T, y2: H - B, stroke: "var(--ink-2)", "stroke-width": 1.5 }, svg);
+    el("text", { x: x(ref), y: T - 6, "text-anchor": "middle", class: "ax" }, svg).textContent = refLabel;
+  }
+}
+
+// ---- header + KPIs
+const C = D.clean, S = D.segments;
+$("h-meta").textContent = `${fmt(C.cohort_customers)} customers · ${fmt(C.cohort_occasions)} purchase days`;
+const whole = S.find((s) => s.name === "Wholesale accounts");
+const lt = D.zero.credit.find((c) => c.method === "last_touch");
+[
+  [pct(D.clv.top20), "of predicted value held by the top 20% of customers", "value is highly concentrated"],
+  [pct(whole.share_of_value), `of value from ${fmt(whole.customers)} wholesale accounts`, `${pct(whole.share_of_customers, 1)} of customers`],
+  [D.clv.spearman.toFixed(2), "rank correlation of predicted vs real 6-month spend", "BG/NBD, scored on unseen months"],
+  [pct(lt.credit), "of last-touch credit goes to a channel that does nothing", "true answer: 0%"],
+].forEach(([v, l, s]) => { const k = h("div", { cls: "kpi" }, $("kpis")); h("div", { cls: "v", text: v }, k); h("div", { cls: "l", text: l }, k); h("div", { cls: "s", text: s }, k); });
+
+// ---- 0. cleaning steps
+[
+  [C.raw_lines, "raw invoice lines", "Dec 2009 to Dec 2011"],
+  [C.raw_lines - C.dropped_exact_duplicates - C.dropped_missing_customer - C.dropped_non_product_codes - C.dropped_price_le_zero,
+   "lines after basic cleaning", `−${fmt(C.dropped_missing_customer)} no customer ID, −${fmt(C.dropped_exact_duplicates)} duplicates, −${fmt(C.dropped_non_product_codes + C.dropped_price_le_zero)} fees and zero prices`],
+  [C.purchase_occasions, "purchase days", `${fmt(C.cancellation_lines)} cancellations netted against the original purchases; same-day invoices merged`],
+  [C.cohort_occasions, "purchase days used", `${fmt(C.cohort_customers)} customers first seen in the training months (${fmt(C.customers_first_seen_in_holdout_excluded)} newer ones excluded)`],
+].forEach(([v, l, d]) => { const s = h("div", { cls: "step" }, $("steps")); h("div", { cls: "v", text: fmt(v) }, s); h("div", { cls: "l", text: l }, s); h("div", { cls: "d", text: d }, s); });
+
+// ---- 1. segments
+const segOrder = [...S].sort((a, b) => b.share_of_value - a.share_of_value);
+(function () {
+  const W = 520, L = 150, R = 50, T = 4, B = 22, bh = 18, group = 60;
+  const H = T + B + segOrder.length * group, max = 0.6, pw = W - L - R, x = (v) => L + (pw * v) / max;
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Segment shares" }, $("segChart"));
+  for (let t = 0; t <= 3; t++) {
+    const v = (max * t) / 3;
+    el("line", { x1: x(v), x2: x(v), y1: T, y2: H - B, stroke: t ? "var(--grid)" : "var(--axis)" }, svg);
+    el("text", { x: x(v), y: H - 6, "text-anchor": "middle", class: "ax" }, svg).textContent = pct(v);
+  }
+  segOrder.forEach((s, i) => {
+    const y = T + i * group + 6;
+    el("text", { x: L - 10, y: y + bh + 3, "text-anchor": "end", class: "axl" }, svg).textContent = s.name;
+    roundedBar(svg, x(0), y, x(s.share_of_customers) - x(0), bh, "var(--s2)");
+    roundedBar(svg, x(0), y + bh + 2, x(s.share_of_value) - x(0), bh, "var(--s1)");
+    el("text", { x: x(s.share_of_value) + 6, y: y + 2 * bh - 1, class: "axl" }, svg).textContent = pct(s.share_of_value);
+    const hit = el("rect", { x: 0, y: y - 4, width: W, height: group, fill: "transparent" }, svg);
+    hit.addEventListener("pointermove", (e) => showTip(e, `${s.name} · segment ${s.id}`, [
+      ["Customers", `${fmt(s.customers)} (${pct(s.share_of_customers, 1)})`, css("--s2")],
+      ["Predicted value", pct(s.share_of_value, 1), css("--s1")]]));
+    hit.addEventListener("pointerleave", hideTip);
+  });
+  $("segCap").textContent = `Segments are fixed on the training months, then checked against the next 6. Bootstrap stability: ${D.seg_meta.ari.toFixed(2)}.`;
+  table($("segTable"), ["Segment", "Orders", "Days since last", "No purchase, next 6 mo.", "Avg spend, next 6 mo."],
+    segOrder.map((s) => [s.name, fmt(s.cal_frequency, 1), fmt(s.recency_days), pct(s.churn_rate), gbp(s.holdout_spend)]), [0, 1, 1, 1, 1]);
+  const lo = Math.min(...S.map((s) => s.churn_rate)), hi = Math.max(...S.map((s) => s.churn_rate));
+  $("segNote").replaceChildren();
+  $("segNote").append("The chance of not buying again ranges from ", h("b", { text: `${pct(lo)} to ${pct(hi)}` }),
+    " across segments, so membership does predict what customers do next. HDBSCAN finds one dense core rather than separate groups: the segments are useful cuts, not natural clusters.");
+})();
+
+// ---- 2. CLV deciles
+(function () {
+  const rows = D.deciles.map((d) => ({ d: d.d, r: d.predicted / d.actual, p: d.predicted, a: d.actual }));
+  const W = 520, H = 250, L = 40, R = 10, T = 10, B = 34, pw = W - L - R, ph = H - T - B;
+  const ymax = 1.6, bw = Math.min(24, (pw / rows.length) * 0.6);
+  const x = (i) => L + (pw * (i + 0.5)) / rows.length, y = (v) => T + ph - (ph * v) / ymax;
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "CLV calibration by decile" }, $("decChart"));
+  for (const v of [0, 0.4, 0.8, 1.2, 1.6]) {
+    el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: v ? "var(--grid)" : "var(--axis)" }, svg);
+    el("text", { x: L - 8, y: y(v) + 4, "text-anchor": "end", class: "ax" }, svg).textContent = v.toFixed(1);
+  }
+  rows.forEach((r, i) => {
+    const color = r.r >= 1 ? "var(--s2)" : "var(--s1)";
+    const top = y(r.r), bx = x(i) - bw / 2, hgt = y(0) - top, rr = 4;
+    el("path", { d: `M${bx},${y(0)} v-${hgt - rr} a${rr},${rr} 0 0 1 ${rr},-${rr} h${bw - 2 * rr} a${rr},${rr} 0 0 1 ${rr},${rr} v${hgt - rr} z`, fill: color }, svg);
+    el("text", { x: x(i), y: H - 18, "text-anchor": "middle", class: "ax" }, svg).textContent = "D" + r.d;
+    if (i === 0 || i === rows.length - 1) el("text", { x: x(i), y: top - 6, "text-anchor": "middle", class: "axl" }, svg).textContent = r.r.toFixed(2);
+    const hit = el("rect", { x: x(i) - pw / rows.length / 2, y: T, width: pw / rows.length, height: ph, fill: "transparent" }, svg);
+    hit.addEventListener("pointermove", (e) => showTip(e, `Decile ${r.d} (${r.d === 10 ? "highest" : r.d === 1 ? "lowest" : "predicted value"})`, [
+      ["Predicted spend", gbp(r.p), null], ["Actual spend", gbp(r.a), null], ["Ratio", r.r.toFixed(2), color === "var(--s2)" ? css("--s2") : css("--s1")]]));
+    hit.addEventListener("pointerleave", hideTip);
+  });
+  el("line", { x1: L, x2: W - R, y1: y(1), y2: y(1), stroke: "var(--ink-2)", "stroke-width": 1.5 }, svg);
+  el("text", { x: W - R, y: y(1) - 5, "text-anchor": "end", class: "ax" }, svg).textContent = "perfect = 1.0";
+  el("text", { x: L + pw / 2, y: H - 2, "text-anchor": "middle", class: "ax" }, svg).textContent = "lowest predicted value  →  highest";
+  const m = D.clv.models;
+  table($("modelTable"), ["Model", "Rank correlation", "Mean abs error"],
+    Object.entries(m).map(([k, v]) => [k, v.spearman.toFixed(2), gbp(v.mae)]), [0, 1, 1]);
+  [[D.clv.pearson.toFixed(2), "raw per-customer correlation: inflated by a few giant accounts"],
+   [(D.clv.freq_value_corr >= 0 ? "+" : "") + D.clv.freq_value_corr.toFixed(2), "order size vs frequency (Gamma-Gamma assumes 0)"],
+   [pct(D.clv.top20), "of value in the top 20% of customers"]]
+    .forEach(([v, l]) => { const s = h("div", { cls: "stat" }, $("clvStats")); h("div", { cls: "v", text: v }, s); h("div", { cls: "l", text: l }, s); });
+})();
+
+// ---- 3. attribution
+const MN = { last_touch: "Last touch", first_touch: "First touch", linear: "Linear", time_decay: "Time decay", markov_removal: "Markov", shapley: "Shapley", shapley_sampled: "Sampled Shapley", TRUTH: "True effects", "CLV-WEIGHTED TRUTH": "True effects, value-weighted" };
+const fair = 1 / D.zero.n_channels;
+$("zeroCap").textContent = `Correct answer: 0%. The line marks an even split across ${D.zero.n_channels} channels (${pct(fair, 1)}).`;
+hbars($("zeroChart"), D.zero.credit.map((c) => ({ label: MN[c.method] || c.method, value: c.credit, color: "var(--s2)",
+  tipRows: [["Credit given", pct(c.credit, 1), css("--s2")], ["Correct credit", "0%", null]] })),
+  { max: 0.4, fmtV: (v) => pct(v), ref: fair, refLabel: "even split" });
+hbars($("valChart"), D.channels.map((c) => ({ label: c.channel.replace("_", " "), value: c.clv_index,
+  color: c.channel === D.zero.channel ? "var(--s2)" : "var(--s1)",
+  tipRows: [["Value index", c.clv_index.toFixed(2), null], ["Median customer value", gbp(c.median_clv), null], ["Converters reached", fmt(c.converters_touched), null]] })),
+  { max: 2, fmtV: (v, axis) => axis ? v.toFixed(1) : v.toFixed(2) + "×", ref: 1, refLabel: "average", bh: 12, gap: 8, L: 110 });
+(function () {
+  const rows = D.budget.filter((b) => b.allocation !== "shapley_sampled");
+  table($("budgetTable"), ["Budget split by", "Error vs true credit", "Sales lost", "Spent on zero-effect channel"],
+    rows.map((b) => [MN[b.allocation] || b.allocation, b.mae == null ? "-" : b.mae.toFixed(3),
+      b.allocation === "TRUTH" ? "-" : pct(b.pct_conversions_lost / 100, 1), gbp(b.spend_on_zero_effect)]), [0, 1, 1, 1]);
+})();
+
+// ---- 4. decisions
+const K = D.k_table.reduce((o, r) => (o[r.k] = r.adj, o), {});
+const shap = D.budget.find((b) => b.allocation === "shapley");
+[
+  ["Use 5 segments", `Separation of future spend: ${K[4].toFixed(3)} at k=4, ${K[5].toFixed(3)} at k=5, ${K[7].toFixed(3)} at k=7. Five gets most of the gain with fewer groups to act on.`],
+  ["Use BG/NBD over gradient boosting", `Better ranking (${D.clv.models["BG/NBD + Gamma-Gamma"].spearman.toFixed(2)} vs ${D.clv.models["GBM challenger"].spearman.toFixed(2)}), and it gives each customer's chance of still being active. Use it to rank and size groups, not to price one customer.`],
+  ["Manage wholesale accounts separately", `${fmt(whole.customers)} customers hold ${pct(whole.share_of_value)} of predicted value and skew every average. They need account management, not campaigns.`],
+  ["Stop budgeting on last-touch", `It sends ${pct(lt.credit)} of the credit to a channel that causes nothing and loses ${pct(D.budget.find((b) => b.allocation === "last_touch").pct_conversions_lost / 100, 1)} of sales. Shapley loses ${pct(shap.pct_conversions_lost / 100, 1)}.`],
+  ["Run a geo test on retargeting", "Switch it off in matched regions for four weeks. Data without an experiment cannot separate 'reaches buyers' from 'creates buyers'."],
+  ["Don't weight budget by customer value yet", "Retargeting reaches the best buyers, so value weighting would reward it twice for the same bias."],
+].forEach(([t, p], i) => { const d = h("div", { cls: "dec" }, $("decisions")); h("div", { cls: "n", text: String(i + 1).padStart(2, "0") }, d); h("h3", { text: t }, d); h("p", { text: p }, d); });
+
+// ---- theme toggle
+(function () {
+  const root = document.documentElement;
+  try { const t = localStorage.getItem("theme"); if (t) root.dataset.theme = t; } catch (e) {}
+  $("themeBtn").onclick = () => {
+    const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    root.dataset.theme = dark ? "light" : "dark";
+    try { localStorage.setItem("theme", root.dataset.theme); } catch (e) {}
+  };
+})();
+</script>
+</body>
+</html>

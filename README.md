@@ -1,6 +1,8 @@
 # Customer Analytics: Segmentation, Lifetime Value and Marketing Attribution
 
-**Live dashboards:** [Tableau Public](https://public.tableau.com/app/profile/riya.ashokbhai.soni/viz/CustomerAnalytics-SegmentationCLVAttribution/Segmentation) · [Looker Studio](https://lookerstudio.google.com/reporting/97a07987-f61e-4930-9219-fa5d02c239cc) · [Executive memo](out/EXECUTIVE_MEMO.md)
+**Live dashboard: https://riya0920.github.io/customer-analytics-suite/**
+
+Also on [Tableau Public](https://public.tableau.com/app/profile/riya.ashokbhai.soni/viz/CustomerAnalytics-SegmentationCLVAttribution/Segmentation) · [Looker Studio](https://lookerstudio.google.com/reporting/97a07987-f61e-4930-9219-fa5d02c239cc) · [Executive memo](out/EXECUTIVE_MEMO.md) (being updated to the real data)
 
 Who are this store's customers, what is each one worth, and which marketing
 channels actually bring in sales?
@@ -137,7 +139,7 @@ in [docs/ENGINEERING.md](docs/ENGINEERING.md).
 ## What we decided, and why
 
 1. **Use 5 segments.** How well segments separate future spend (adjusted η²):
-   0.039 at k=4, 0.065 at k=5, 0.071 at k=7. Five gets most of what seven gives,
+   0.039 at k=4, 0.066 at k=5, 0.071 at k=7. Five gets most of what seven gives,
    with fewer groups for a team to act on. Four (the pick of four geometric
    criteria) loses a lot.
 2. **Use BG/NBD over gradient boosting.** It ranks better (0.63 vs 0.54), gives
@@ -172,6 +174,7 @@ python src/build_data.py     # ~5 min first time (reads the Excel file), then ~3
 python run_analytics.py      # ~1 min   main report   -> out/analytics_report.txt, out/EXECUTIVE_MEMO.md
 python run_complete.py       # ~5 min   deeper checks -> out/complete_report.txt (dbt build, k, Shapley)
 python export_bi.py          #          CSVs for the dashboards -> bi_export/
+python build_dashboard.py    #          web dashboard -> docs/index.html
 python -m pytest tests -q    # 95 tests
 ```
 

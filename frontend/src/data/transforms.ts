@@ -5,6 +5,7 @@
 import type {
   AttributionCreditRow,
   ClvPerCustomerRow,
+  KSelectionRow,
   SegmentRow,
 } from "./types";
 
@@ -61,8 +62,8 @@ export interface HistogramBin {
  */
 export function clvHistogram(
   rows: ClvPerCustomerRow[],
-  binCount = 30,
-  clip = 600,
+  binCount = 40,
+  clip = 2000,
 ): HistogramBin[] {
   const width = clip / binCount;
   const bins: HistogramBin[] = Array.from({ length: binCount }, (_, i) => ({
@@ -127,10 +128,76 @@ export function sum(xs: number[]): number {
   return xs.reduce((a, b) => a + b, 0);
 }
 
-export function formatUsd(n: number): string {
-  return n.toLocaleString("en-US", {
+export interface SegmentHighlights {
+  /** Segment with the largest share of total predicted value. */
+  top: SegmentRow;
+  /** Segment with the highest predicted value per customer. */
+  richest: SegmentRow;
+  /** Segment with the lowest predicted value per customer. */
+  poorest: SegmentRow;
+}
+
+/** The segments worth naming in the narrative, picked from the data. */
+export function segmentHighlights(
+  segments: SegmentRow[],
+): SegmentHighlights | undefined {
+  if (segments.length === 0) return undefined;
+  const maxBy = (f: (s: SegmentRow) => number) =>
+    segments.reduce((a, b) => (f(b) > f(a) ? b : a));
+  return {
+    top: maxBy((s) => s.share_of_value),
+    richest: maxBy((s) => s.clv_mean),
+    poorest: maxBy((s) => -s.clv_mean),
+  };
+}
+
+export interface KSelectionSummary {
+  chosen: KSelectionRow;
+  /** The row for k = chosen - 1, if it was tested. */
+  previous?: KSelectionRow;
+  /** The k with the highest adjusted eta^2 (forward separation). */
+  bestForward: KSelectionRow;
+  /** chosen adjusted eta^2 as a fraction of the best one. */
+  shareOfBestForward: number;
+  silhouetteK: number;
+  daviesBouldinK: number;
+  stabilityK: number;
+  /** Every other k whose bootstrap stability (mean ARI) beats the chosen k. */
+  moreStableKs: number[];
+}
+
+/** What the k-selection table actually says about a chosen k. */
+export function kSelectionSummary(
+  rows: KSelectionRow[],
+  chosenK: number,
+): KSelectionSummary | undefined {
+  const chosen = rows.find((r) => r.k === chosenK);
+  if (!chosen) return undefined;
+  const maxBy = (f: (r: KSelectionRow) => number) =>
+    rows.reduce((a, b) => (f(b) > f(a) ? b : a));
+  const bestForward = maxBy((r) => r.adjusted_eta_squared);
+  return {
+    chosen,
+    previous: rows.find((r) => r.k === chosenK - 1),
+    bestForward,
+    shareOfBestForward:
+      bestForward.adjusted_eta_squared > 0
+        ? chosen.adjusted_eta_squared / bestForward.adjusted_eta_squared
+        : 0,
+    silhouetteK: maxBy((r) => r.silhouette).k,
+    daviesBouldinK: maxBy((r) => -r.davies_bouldin).k,
+    stabilityK: maxBy((r) => r.mean_ari).k,
+    moreStableKs: rows
+      .filter((r) => r.k !== chosenK && r.mean_ari > chosen.mean_ari)
+      .map((r) => r.k),
+  };
+}
+
+/** Pounds sterling, no decimals. The source data is a UK retailer in GBP. */
+export function formatGbp(n: number): string {
+  return n.toLocaleString("en-GB", {
     style: "currency",
-    currency: "USD",
+    currency: "GBP",
     maximumFractionDigits: 0,
   });
 }

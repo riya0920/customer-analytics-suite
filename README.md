@@ -2,7 +2,7 @@
 
 **Live dashboard: https://riya0920.github.io/customer-analytics-suite/**
 
-Also on [Tableau Public](https://public.tableau.com/app/profile/riya.ashokbhai.soni/viz/CustomerAnalytics-SegmentationCLVAttribution/Segmentation) · [Looker Studio](https://lookerstudio.google.com/reporting/97a07987-f61e-4930-9219-fa5d02c239cc) · [Executive memo](out/EXECUTIVE_MEMO.md) (being updated to the real data)
+Also on [Tableau Public](https://public.tableau.com/app/profile/riya.ashokbhai.soni/viz/CustomerAnalytics-SegmentationCLVAttribution/Segmentation) · [Looker Studio](https://lookerstudio.google.com/reporting/97a07987-f61e-4930-9219-fa5d02c239cc) (being updated to the real data) · [Executive memo](out/EXECUTIVE_MEMO.md)
 
 Who are this store's customers, what is each one worth, and which marketing
 channels actually bring in sales?
@@ -85,7 +85,8 @@ in [docs/ENGINEERING.md](docs/ENGINEERING.md).
 | 0 · lapsed one-timers | 1,133 (23%) | 1.0 | 354 | 76% | 5% |
 
 - The segments predict the future: the chance of not buying again ranges from
-  **9% to 76%**. They are stable too (bootstrap agreement 0.92).
+  **9% to 76%**. They are fairly stable: re-running on bootstrap samples
+  gives an agreement score of 0.74 to 0.92 (1.0 = identical), depending on the check.
 - **34 wholesale customers hold 21% of predicted value.** The top 20% of
   customers hold 69%.
 - The customers are **one continuous cloud, not natural groups**: HDBSCAN finds

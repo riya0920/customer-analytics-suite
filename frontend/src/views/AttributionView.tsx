@@ -1,5 +1,5 @@
-// Attribution view: how each method's per-channel credit compares to the
-// simulator's known truth, how the methods rank on error, and what choosing the
+// Attribution view: how each method's per-channel credit compares to the known
+// truth of the simulated ad journeys (the only simulated part of this project), how the methods rank on error, and what choosing the
 // wrong one costs in conversions - including the planted zero-effect channel that
 // every method over-credits.
 
@@ -23,8 +23,8 @@ import { useDataset } from "../data/store";
 import {
   attributionForMethod,
   attributionMethods,
+  formatGbp,
   formatPct,
-  formatUsd,
   zeroEffectChannel,
 } from "../data/transforms";
 import type { BudgetOutcomeRow } from "../data/types";
@@ -76,7 +76,7 @@ export function AttributionView() {
     {
       key: "value",
       header: "Customer value",
-      render: (r) => formatUsd(r.customer_value),
+      render: (r) => formatGbp(r.customer_value),
     },
     {
       key: "vlost",
@@ -87,12 +87,29 @@ export function AttributionView() {
   ];
 
   const zeroRow = perChannel.find((r) => r.channel === zeroChannel);
+  const creditedZero = methodScores.filter(
+    (m) => m.credit_to_zero_effect > 0,
+  ).length;
+
+  const methodRows = budgetOutcomes.filter((r) => r.allocation !== "TRUTH");
+  const bestBudget = methodRows.length
+    ? methodRows.reduce((a, b) =>
+        b.pct_conversions_lost < a.pct_conversions_lost ? b : a,
+      )
+    : undefined;
+  const worstBudget = methodRows.length
+    ? methodRows.reduce((a, b) =>
+        b.pct_conversions_lost > a.pct_conversions_lost ? b : a,
+      )
+    : undefined;
+  const lastTouch = methodRows.find((r) => r.allocation === "last_touch");
+  const label = (m: string) => METHOD_LABELS[m] ?? m;
 
   return (
     <div className="grid">
       <Card
         title="Credit vs truth, by method"
-        subtitle="For each attribution method, the credit it assigns each channel next to the simulator's known true effect. Channels ordered by true effect."
+        subtitle="Ad journeys are simulated for the real customers, with channel effects we set. For each method, the credit it gives each channel next to that known true effect. Channels ordered by true effect."
       >
         <div className="chip-row">
           {methods.map((m) => (
@@ -135,12 +152,14 @@ export function AttributionView() {
               dataKey="credit"
               fill="var(--accent)"
               radius={[3, 3, 0, 0]}
+              isAnimationActive={false}
             />
             <Bar
               name="True effect"
               dataKey="truth"
               fill="var(--accent-2)"
               radius={[3, 3, 0, 0]}
+              isAnimationActive={false}
             />
           </BarChart>
         </ResponsiveContainer>
@@ -149,9 +168,13 @@ export function AttributionView() {
             <strong>* {zeroChannel}</strong> is the planted incrementality
             control: its true effect is <strong>zero</strong>, yet{" "}
             {METHOD_LABELS[method] ?? method} still hands it{" "}
-            <strong>{formatPct(zeroRow.credit)}</strong> of the credit. Every
-            method over-credits it - that gap is exactly what a proper holdout
-            experiment would exist to catch.
+            <strong>{formatPct(zeroRow.credit)}</strong> of the credit.{" "}
+            {creditedZero === methodScores.length
+              ? "Every method gives"
+              : `${creditedZero} of ${methodScores.length} methods give`}{" "}
+            it some credit, because it is shown to people already about to
+            buy. Only an experiment (switching it off in some regions) can catch
+            that.
           </Callout>
         )}
       </Card>
@@ -159,7 +182,7 @@ export function AttributionView() {
       <div className="grid cols-2">
         <Card
           title="Method accuracy"
-          subtitle="Mean absolute error against truth (x) vs credit wrongly given to the zero-effect channel (y). Bottom-left is best; the dashed target is zero on both."
+          subtitle="Mean absolute error against truth (x) vs credit wrongly given to the zero-effect channel (y). Bottom-left is best."
         >
           <ResponsiveContainer width="100%" height={280}>
             <ScatterChart margin={{ top: 10, right: 16, bottom: 20, left: 4 }}>
@@ -232,7 +255,7 @@ export function AttributionView() {
 
         <Card
           title="What the wrong method costs"
-          subtitle="Allocate the budget by each method's credit, then score against the simulator's optimum. Conversions and customer value lost versus the oracle truth."
+          subtitle="Split the budget by each method's credit, then count the sales it really produces under the known channel effects. Conversions and customer value lost versus budgeting on the truth."
         >
           <DataTable
             columns={budgetCols}
@@ -241,11 +264,34 @@ export function AttributionView() {
             isHighlighted={(r) => r.allocation === "TRUTH"}
           />
           <Callout>
-            {METHOD_LABELS[bestMethod.method] ?? bestMethod.method} is the closest
-            to truth (MAE {bestMethod.mae.toFixed(4)}). <strong>Markov removal</strong>{" "}
-            scores worst here - it collapses credit onto a single channel and
-            sheds ~41% of conversions - a good reminder that a fashionable method
-            is not automatically the accurate one on this data.
+            {label(bestMethod.method)} is closest to the true credit (MAE{" "}
+            {bestMethod.mae.toFixed(4)})
+            {bestBudget && bestBudget.allocation !== bestMethod.method ? (
+              <>
+                , but <strong>{label(bestBudget.allocation)}</strong> gives the
+                best budget, losing only{" "}
+                {formatPct(bestBudget.pct_conversions_lost / 100)} of sales. The
+                lowest error is not the same as the best decision.
+              </>
+            ) : (
+              "."
+            )}
+            {worstBudget && (
+              <>
+                {" "}
+                <strong>{label(worstBudget.allocation)}</strong> does worst: it
+                loses {formatPct(worstBudget.pct_conversions_lost / 100)} of
+                sales.
+              </>
+            )}
+            {lastTouch && zeroChannel && (
+              <>
+                {" "}
+                Last touch loses{" "}
+                {formatPct(lastTouch.pct_conversions_lost / 100)} and puts{" "}
+                {formatGbp(lastTouch.spend_on_zero_effect)} into {zeroChannel}.
+              </>
+            )}
           </Callout>
         </Card>
       </div>

@@ -136,6 +136,7 @@ footer a { color: var(--ink-2); }
     <span class="pill" id="h-meta"></span>
     <span class="pill">Ad journeys simulated (the only way to know the true answer)</span>
     <span class="pill"><a href="https://github.com/riya0920/customer-analytics-suite">Code on GitHub</a></span>
+    <span class="pill"><a href="app/">Interactive React app</a></span>
   </div>
 </header>
 
@@ -354,7 +355,7 @@ const segOrder = [...S].sort((a, b) => b.share_of_value - a.share_of_value);
       ["Predicted value", pct(s.share_of_value, 1), css("--s1")]]));
     hit.addEventListener("pointerleave", hideTip);
   });
-  $("segCap").textContent = `Segments are fixed on the training months, then checked against the next 6. Bootstrap stability: ${D.seg_meta.ari.toFixed(2)}.`;
+  $("segCap").textContent = `Segments are fixed on the training months, then checked against the next 6. Bootstrap agreement: ${Math.min(D.seg_meta.ari, D.seg_meta.ari_sweep ?? 1).toFixed(2)} to ${Math.max(D.seg_meta.ari, D.seg_meta.ari_sweep ?? 0).toFixed(2)} depending on the check (1.0 = identical).`;
   table($("segTable"), ["Segment", "Orders", "Days since last", "No purchase, next 6 mo.", "Avg spend, next 6 mo."],
     segOrder.map((s) => [s.name, fmt(s.cal_frequency, 1), fmt(s.recency_days), pct(s.churn_rate), gbp(s.holdout_spend)]), [0, 1, 1, 1, 1]);
   const lo = Math.min(...S.map((s) => s.churn_rate)), hi = Math.max(...S.map((s) => s.churn_rate));

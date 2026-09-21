@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { StatCard } from "./components/primitives";
 import { useData } from "./data/store";
-import { formatPct, formatUsd } from "./data/transforms";
+import { formatGbp, formatPct } from "./data/transforms";
 import { SegmentationView } from "./views/SegmentationView";
 import { ClvView } from "./views/ClvView";
 import { AttributionView } from "./views/AttributionView";
@@ -23,11 +23,11 @@ export default function App() {
       <header className="app-header">
         <h1>Customer Analytics - Segmentation · CLV · Attribution</h1>
         <p>
-          A React + TypeScript front end over the{" "}
-          <code>customer-analytics-suite</code> pipeline outputs. Three questions
-          on one dataset: who the customers are, what they are worth, and which
-          channels earned it - every figure read from the exported model results,
-          not hard-coded.
+          Real transactions from a UK online gift retailer (UCI Online Retail II,
+          Dec 2009 - Dec 2011, amounts in £). Segments and lifetime value come from
+          that real data. The ad journeys are simulated, with channel effects we
+          set, so each attribution method can be scored against a known truth.
+          Every figure is read from the exported model results.
         </p>
       </header>
 
@@ -73,9 +73,10 @@ export default function App() {
         >
           customer-analytics-suite
         </a>{" "}
-        dbt/Python pipeline (5-segment RFM clustering, BG/NBD + Gamma-Gamma CLV,
-        12-channel attribution scored against a simulator's known truth). This UI
-        reads the CSVs verbatim and computes only presentation-layer aggregates.
+        dbt/Python pipeline on UCI Online Retail II (real segments and BG/NBD +
+        Gamma-Gamma CLV; attribution over simulated ad journeys with known channel
+        effects). This UI reads the CSVs verbatim and computes only
+        presentation-layer aggregates.
       </footer>
     </div>
   );
@@ -114,10 +115,10 @@ function KpiBar() {
       />
       <StatCard
         label="Value at stake"
-        value={formatUsd(
+        value={formatGbp(
           state.data.segments.reduce((s, r) => s + r.clv_total, 0),
         )}
-        sub="total predicted CLV"
+        sub="total predicted CLV, test period"
       />
     </div>
   );

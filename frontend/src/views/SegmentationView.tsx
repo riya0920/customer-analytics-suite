@@ -1,11 +1,13 @@
 // Segmentation view: who the five clusters are, how concentrated value is across
-// them, and why k=5 was chosen rather than asserted.
+// them, and why k=5 was chosen rather than asserted. All narrative numbers are
+// computed from the loaded CSVs.
 
 import {
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
+  Legend,
   Line,
   LineChart,
   ReferenceLine,
@@ -17,11 +19,22 @@ import {
 import { Callout, Card, DataTable, type Column } from "../components/primitives";
 import { colorFor } from "../components/colors";
 import { useDataset } from "../data/store";
-import { formatPct, formatUsd, valueConcentrationCurve } from "../data/transforms";
+import {
+  formatGbp,
+  formatPct,
+  kSelectionSummary,
+  segmentHighlights,
+  valueConcentrationCurve,
+} from "../data/transforms";
 import type { SegmentRow } from "../data/types";
+
+/** The k the pipeline uses (see README, "Use 5 segments"). */
+const CHOSEN_K = 5;
 
 export function SegmentationView() {
   const { segments, kSelection } = useDataset();
+  const hl = segmentHighlights(segments);
+  const ks = kSelectionSummary(kSelection, CHOSEN_K);
 
   const byValue = [...segments].sort((a, b) => b.share_of_value - a.share_of_value);
   const curve = valueConcentrationCurve(segments);
@@ -44,11 +57,15 @@ export function SegmentationView() {
       header: "Recency (d)",
       render: (r) => r.recency_days.toFixed(0),
     },
-    { key: "churn", header: "Churn", render: (r) => formatPct(r.churn_rate) },
+    {
+      key: "churn",
+      header: "No buy next 6 mo",
+      render: (r) => formatPct(r.churn_rate),
+    },
     {
       key: "clvmean",
       header: "CLV / cust",
-      render: (r) => formatUsd(r.clv_mean),
+      render: (r) => formatGbp(r.clv_mean),
     },
     {
       key: "valshare",
@@ -56,8 +73,6 @@ export function SegmentationView() {
       render: (r) => formatPct(r.share_of_value),
     },
   ];
-
-  const topSegment = byValue[0];
 
   return (
     <div className="grid">
@@ -86,7 +101,11 @@ export function SegmentationView() {
                 formatter={(v: number) => formatPct(v)}
                 contentStyle={tooltipStyle}
               />
-              <Bar dataKey="share_of_value" radius={[4, 4, 0, 0]}>
+              <Bar
+                dataKey="share_of_value"
+                radius={[4, 4, 0, 0]}
+                isAnimationActive={false}
+              >
                 {byValue.map((s) => (
                   <Cell key={s.segment} fill={colorFor(segmentIndex(s.segment))} />
                 ))}
@@ -148,74 +167,141 @@ export function SegmentationView() {
 
       <Card
         title="The five segments"
-        subtitle="RFM + behavioural clustering on the calibration window, with the forward-tested holdout outcome per segment."
+        subtitle="k-means on recency, frequency, spend, products per order and return rate over the first 18 months, then checked against what each segment did in the next 6."
       >
         <DataTable
           columns={columns}
           rows={byValue}
           rowKey={(r) => r.segment}
-          isHighlighted={(r) => r.segment === topSegment.segment}
+          isHighlighted={(r) => r.segment === hl?.top.segment}
         />
-        <Callout>
-          <strong>{topSegment.segment}</strong> holds{" "}
-          <strong>{formatPct(topSegment.share_of_value)}</strong> of predicted
-          value on{" "}
-          <strong>{formatPct(topSegment.share_of_customers)}</strong> of
-          customers. The two large high-recency/high-churn clusters (Segments 1 &
-          3) are ~45% of the base but under 4% of value - the map a flat
-          "everyone gets the same email" plan ignores.
-        </Callout>
+        {hl && (
+          <Callout>
+            <strong>{hl.top.segment}</strong> holds{" "}
+            <strong>{formatPct(hl.top.share_of_value)}</strong> of predicted
+            value on <strong>{formatPct(hl.top.share_of_customers)}</strong> of
+            customers.{" "}
+            {hl.richest.segment !== hl.top.segment && (
+              <>
+                <strong>{hl.richest.segment}</strong> is only{" "}
+                {hl.richest.customers.toLocaleString()} customers (
+                {formatPct(hl.richest.share_of_customers)}) averaging{" "}
+                {hl.richest.cal_frequency.toFixed(0)} orders each, yet holds{" "}
+                <strong>{formatPct(hl.richest.share_of_value)}</strong> of value -
+                wholesale-sized accounts that skew every average.{" "}
+              </>
+            )}
+            At the other end, <strong>{hl.poorest.segment}</strong> is{" "}
+            {formatPct(hl.poorest.share_of_customers)} of customers and{" "}
+            {formatPct(hl.poorest.share_of_value)} of value, and{" "}
+            {formatPct(hl.poorest.churn_rate)} of them did not buy again in the
+            next 6 months.
+          </Callout>
+        )}
       </Card>
 
       <Card
         title="Why k = 5"
-        subtitle="k was selected, not assumed: bootstrap cluster stability (mean ARI) stays high at k=5 while the smallest cluster is still a usable size, and the elbow in inertia has flattened."
+        subtitle="Chosen by forward separation: how well segments formed on the first 18 months separate spend in the next 6 (adjusted η², left axis). Stability and smallest-cluster size are shown for reference (right axis)."
       >
-        <ResponsiveContainer width="100%" height={240}>
+        <ResponsiveContainer width="100%" height={260}>
           <LineChart
             data={kSelection}
-            margin={{ top: 6, right: 16, bottom: 4, left: 0 }}
+            margin={{ top: 6, right: 4, bottom: 4, left: 0 }}
           >
             <CartesianGrid stroke="var(--grid)" />
             <XAxis dataKey="k" stroke="var(--muted)" tickLine={false} />
             <YAxis
+              yAxisId="eta"
+              stroke="var(--muted)"
+              domain={[0, "auto"]}
+              tickFormatter={(v: number) => v.toFixed(2)}
+              tickLine={false}
+            />
+            <YAxis
+              yAxisId="unit"
+              orientation="right"
               stroke="var(--muted)"
               domain={[0, 1]}
               tickLine={false}
             />
-            <Tooltip contentStyle={tooltipStyle} />
-            <ReferenceLine x={5} stroke="var(--accent)" strokeDasharray="4 4" />
+            <Tooltip
+              formatter={(v: number) => v.toFixed(3)}
+              labelFormatter={(k: number) => `k = ${k}`}
+              contentStyle={tooltipStyle}
+            />
+            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <ReferenceLine
+              yAxisId="eta"
+              x={CHOSEN_K}
+              stroke="var(--accent)"
+              strokeDasharray="4 4"
+            />
             <Line
+              yAxisId="eta"
+              name="adjusted η² (forward separation)"
+              dataKey="adjusted_eta_squared"
+              stroke="var(--accent-2)"
+              strokeWidth={2.5}
+              dot={{ r: 3 }}
+              isAnimationActive={false}
+            />
+            <Line
+              yAxisId="unit"
               name="mean ARI (stability)"
               dataKey="mean_ari"
               stroke="var(--accent)"
-              strokeWidth={2}
+              strokeWidth={1.5}
               dot={{ r: 2 }}
               isAnimationActive={false}
             />
             <Line
+              yAxisId="unit"
               name="smallest cluster share"
               dataKey="smallest_cluster_share"
               stroke="var(--warn)"
-              strokeWidth={2}
+              strokeWidth={1.5}
               dot={{ r: 2 }}
               isAnimationActive={false}
             />
           </LineChart>
         </ResponsiveContainer>
-        <Callout>
-          At k=5 bootstrap stability (mean ARI) is{" "}
-          <strong>
-            {kSelection.find((r) => r.k === 5)?.mean_ari.toFixed(2) ?? "-"}
-          </strong>{" "}
-          and the smallest cluster still holds{" "}
-          <strong>
-            {formatPct(
-              kSelection.find((r) => r.k === 5)?.smallest_cluster_share ?? 0,
+        {ks && (
+          <Callout>
+            Adjusted η² is{" "}
+            {ks.previous && (
+              <>
+                {ks.previous.adjusted_eta_squared.toFixed(3)} at k=
+                {ks.previous.k},{" "}
+              </>
             )}
-          </strong>{" "}
-          of customers. Push to k=6+ and stability drops and clusters splinter.
-        </Callout>
+            <strong>
+              {ks.chosen.adjusted_eta_squared.toFixed(3)} at k={ks.chosen.k}
+            </strong>
+            {ks.bestForward.k !== ks.chosen.k && (
+              <>
+                {" "}
+                and peaks at {ks.bestForward.adjusted_eta_squared.toFixed(3)} at
+                k={ks.bestForward.k}. k={ks.chosen.k} gets{" "}
+                {formatPct(ks.shareOfBestForward, 0)} of that with fewer groups to
+                act on
+              </>
+            )}
+            . Silhouette picks k={ks.silhouetteK}, Davies-Bouldin k=
+            {ks.daviesBouldinK} and stability k={ks.stabilityK}; those score how
+            tidy the clusters look, not whether they predict the future.{" "}
+            {ks.moreStableKs.length > 0 && (
+              <>
+                Stability is not the reason for k={ks.chosen.k}: its mean ARI is{" "}
+                {ks.chosen.mean_ari.toFixed(2)},{" "}
+                {ks.moreStableKs.length === kSelection.length - 1
+                  ? "the lowest of any k tested"
+                  : `below k=${ks.moreStableKs.join(", ")}`}
+                .
+              </>
+            )}
+          </Callout>
+        )}
       </Card>
     </div>
   );

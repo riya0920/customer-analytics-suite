@@ -22,14 +22,14 @@ def test_health_reports_row_counts(client: TestClient) -> None:
     body = r.json()
     assert body["status"] == "ok"
     assert body["row_counts"]["segments"] == 5
-    assert body["row_counts"]["clv_per_customer"] == 8000
+    assert body["row_counts"]["clv_per_customer"] == 4899
 
 
 def test_kpis_shape_and_values(client: TestClient) -> None:
     r = client.get("/api/kpis")
     assert r.status_code == 200
     body = r.json()
-    assert body["total_customers"] == 8000
+    assert body["total_customers"] == 4899
     assert body["n_channels"] == 12
     assert set(body) == {
         "total_customers",
@@ -70,7 +70,7 @@ def test_clv_customers_pagination(client: TestClient) -> None:
     r = client.get("/api/clv/customers", params={"limit": 10, "offset": 0})
     assert r.status_code == 200
     page = r.json()
-    assert page["total"] == 8000
+    assert page["total"] == 4899
     assert page["limit"] == 10
     assert len(page["items"]) == 10
 
@@ -111,9 +111,11 @@ def test_attribution_methods(client: TestClient) -> None:
     assert r.status_code == 200
     methods = {m["method"] for m in r.json()}
     assert "shapley" in methods
-    # Shapley is the lowest-MAE method in this export.
+    # The lowest MAE served must be the one the pipeline reports as best. Which
+    # method wins is data-dependent (on real customers three are within 0.001).
     best = min(r.json(), key=lambda m: m["mae"])
-    assert best["method"] == "shapley"
+    kpis = client.get("/api/kpis").json()
+    assert best["mae"] == pytest.approx(kpis["best_attribution_mae"], abs=1e-3)
 
 
 def test_attribution_credit_filter(client: TestClient) -> None:

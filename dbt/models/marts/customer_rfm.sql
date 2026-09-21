@@ -16,7 +16,7 @@ select
     min(t_days)                               as first_purchase_day,
     avg(order_value)                          as avg_order_value,
     sum(order_value)                          as total_value,
-    avg(n_categories)                         as avg_categories,
-    avg(case when used_discount then 1.0 else 0.0 end) as discount_rate
+    avg(n_products)                         as avg_products,
+    avg(case when had_return then 1.0 else 0.0 end) as return_rate
 from t
 group by customer_id

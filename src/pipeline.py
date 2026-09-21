@@ -77,9 +77,9 @@ def raw_frames():
             rows.append((jid, cid, jidx, pos, ch, float(d), bool(y)))
 
     tx_df = pd.DataFrame(txn, columns=["customer_id", "t_days", "order_value",
-                                       "n_categories", "used_discount"])
-    tx_df = tx_df.astype({"customer_id": "int32", "n_categories": "int32"})
-    tx_df["used_discount"] = tx_df["used_discount"].astype(bool)
+                                       "n_products", "had_return"])
+    tx_df = tx_df.astype({"customer_id": "int32", "n_products": "int32"})
+    tx_df["had_return"] = tx_df["had_return"].astype(bool)
     touch_df = pd.DataFrame(rows, columns=["journey_id", "customer_id",
                                            "journey_index", "position",
                                            "channel", "touch_day", "converted"])
@@ -128,7 +128,7 @@ def land(db_path: str = WAREHOUSE) -> dict:
     return {"transactions": int(n_txn), "touches": int(n_touch), "path": db_path}
 
 
-def run_dbt(command: str = "build", calibration_days: int = 511) -> dict:
+def run_dbt(command: str = "build", calibration_days: int = 546) -> dict:
     """Invoke dbt with the cutoff passed as a var, so it has exactly one home."""
     import sys
     env = dict(os.environ)

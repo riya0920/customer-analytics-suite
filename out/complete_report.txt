@@ -1,16 +1,16 @@
 ==============================================================================
-DATA-1 COMPLETION PASS -- 15238 journeys, 12 channels, 8000 customers
+COMPLETION PASS -- 9284 journeys, 12 channels, 4899 customers
 ==============================================================================
 
 ==============================================================================
 A. A PIPELINE, NOT THREE SCRIPTS
 ==============================================================================
-  ok       land_raw       3.4s
-  ok       dbt_build      59.1s
-  ok       read_marts     0.3s
+  ok       land_raw       1.0s
+  ok       dbt_build      15.3s
+  ok       read_marts     0.1s
 
   dbt: PASS=15 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=15
-  marts: customer_rfm 7894 rows, customer_holdout 2847 rows
+  marts: customer_rfm 4899 rows, customer_holdout 2592 rows
 
 WHAT DBT BUYS HERE, AND IT IS NOT SQL FOR ITS OWN SAKE:
 
@@ -47,22 +47,22 @@ WHAT DBT BUYS HERE, AND IT IS NOT SQL FOR ITS OWN SAKE:
 B. CHOOSING k, AND WHAT HAPPENS WHEN YOU STOP CHOOSING IT
 ==============================================================================
  k   silhouette  calinski_harabasz  davies_bouldin     mean_ari  eta_squared  adjusted_eta_squared
- 2       0.2046          2200.0497          1.7363       0.9409       0.1867                0.1866
- 3       0.2091          2098.8796          1.6358       0.9423       0.2199                0.2197
- 4       0.1996          1942.2025          1.4915       0.9007       0.2588                0.2585
- 5       0.1857          1782.7557          1.5522       0.6707       0.2991                0.2987
- 6       0.1852          1689.4300          1.4489       0.6562       0.3130                0.3125
- 7       0.1863          1613.6835          1.4119       0.7499       0.3072                0.3066
- 8       0.1907          1550.0330          1.3726       0.6345       0.3076                0.3070
+ 2       0.2551          1624.6680          1.5903       0.9341       0.0252                0.0250
+ 3       0.2169          1503.7303          1.4782       0.7658       0.0364                0.0360
+ 4       0.2552          1605.2160          1.2548       0.9538       0.0393                0.0387
+ 5       0.2329          1411.9619          1.4303       0.7356       0.0666                0.0659
+ 6       0.2053          1318.7701          1.3912       0.8717       0.0709                0.0699
+ 7       0.2083          1241.1131          1.3346       0.8952       0.0719                0.0708
+ 8       0.2040          1163.1735          1.3596       0.7858       0.0717                0.0703
 
-  silhouette (max)                     k = 3
+  silhouette (max)                     k = 4
   calinski-harabasz (max)              k = 2
-  davies-bouldin (min)                 k = 8
+  davies-bouldin (min)                 k = 4
   elbow (inertia knee)                 k = 4
-  stability (max ARI)                  k = 3
-  forward separation (max adj eta^2)   k = 6
+  stability (max ARI)                  k = 4
+  forward separation (max adj eta^2)   k = 7
 
-SIX CRITERIA, 5 DIFFERENT ANSWERS. That is the finding, and averaging
+SIX CRITERIA, 3 DIFFERENT ANSWERS. That is the finding, and averaging
 them would be the worst possible response to it.
 
   They disagree for principled reasons. Silhouette rewards compact
@@ -80,25 +80,17 @@ them would be the worst possible response to it.
 HDBSCAN, which does not take k at all -- swept over min_cluster_size:
 
   min_cluster_size     clusters  noise share largest cluster
-  25                          8       0.8484            363
-  50                          2       0.5562           3228
-  100                         2       0.6905           2328
+  25                          5       0.6197            923
+  50                          2       0.3466           3101
+  100                         0       1.0000              0
   200                         0       1.0000              0
   400                         0       1.0000              0
 
-  Lowest noise share: 0.5562 at min_cluster_size=50.
+  Lowest noise share: 0.3466 at min_cluster_size=50.
 
-  HDBSCAN LEAVES THE MAJORITY UNASSIGNED AT EVERY SETTING TRIED, and
-  that is a statement about this customer base rather than about the
-  algorithm: RFM features on a retail panel are one diffuse cloud
-  with a thin high-value tail, not a set of dense islands. There is
-  no density structure to find, so a density method correctly finds
-  none.
-
-  Which makes it completely unusable for a campaign. 'Unassigned' is
-  not a segment anyone can target, and a marketing team handed a
-  clustering that covers 44% of customers will go back to k-means
-  by the end of the week.
+  At its best setting HDBSCAN finds 2 clusters, and the largest holds
+  63% of all customers; the rest is noise. That is one dense core, not
+  a set of natural groups.
 
   THE COMPARISON IS NOT 'WHICH IS BETTER'. k-means forces a partition
   and is therefore always actionable and sometimes fictional -- it will
@@ -106,8 +98,9 @@ HDBSCAN, which does not take k at all -- swept over min_cluster_size:
   refuses to invent structure and is therefore sometimes honest and
   often unusable. Which failure mode you prefer is a business decision,
   and the useful output of running both is knowing WHICH ONE you are
-  buying: here, k-means is inventing the segments, and that is worth
-  knowing before anyone builds a campaign on them.
+  buying: here the customers form one continuum, so the k-means
+  segments are useful cuts through it, not groups that exist on their
+  own. That is worth knowing before anyone builds a campaign on them.
 
 ==============================================================================
 C. SHAPLEY AT SCALE -- SAMPLED, AND SCORED AGAINST EXACT
@@ -115,24 +108,24 @@ C. SHAPLEY AT SCALE -- SAMPLED, AND SCORED AGAINST EXACT
 Exact Shapley over 12 channels = 4096 coalitions.
 
  n_perms  mean_abs_error  max_abs_error
-      25         0.07125        0.18578
-      50         0.07253        0.21836
-     100         0.07303        0.16348
-     200         0.06445        0.10646
-     400         0.05955        0.13349
-     800         0.05723        0.11743
+      25         0.11314        0.31829
+      50         0.10239        0.19183
+     100         0.07917        0.20552
+     200         0.07663        0.16206
+     400         0.05615        0.13047
+     800         0.05065        0.11629
 
   32x more permutations should cut Monte-Carlo error by 5.66x if the
-  estimator were merely noisy. Measured: 1.25x.
+  estimator were merely noisy. Measured: 2.23x.
 
 IT DOES NOT CONVERGE, AND THAT IS THE RESULT OF RUNNING THE CHECK.
 
-  The error falls a little and then plateaus around 0.057. More samples
+  The error falls a little and then plateaus around 0.051. More samples
   do not help, which means the gap is BIAS rather than variance -- the
   sampled estimator is converging to a different number than the exact
   one, not noisily to the same number.
 
-  The cause is visible in the coalition count below: only 2519 of the 4096
+  The cause is visible in the coalition count below: only 2126 of the 4096
   possible coalitions were ever observed. A permutation walks the
   lattice one channel at a time, and when the next coalition was never
   seen it cannot advance -- so permutations STALL, and they stall more
@@ -153,20 +146,20 @@ IT DOES NOT CONVERGE, AND THAT IS THE RESULT OF RUNNING THE CHECK.
   the discrepancy is visible at all.
 
       channel     exact   sampled        se     truth
-  paid_search    0.1501    0.2433    0.0163    0.2055
-        email    0.1200    0.1381    0.0168    0.1598
-shopping_feed    0.0999    0.2417    0.0144    0.1256
-       social    0.0917    0.0806    0.0158    0.1027
-   influencer    0.0695    0.0000    0.0142    0.0799
-    affiliate    0.0854    0.0428    0.0148    0.0685
-          ctv    0.0471    0.0000    0.0122    0.0639
-      podcast    0.0569    0.0543    0.0128    0.0571
-          sms    0.0727    0.0348    0.0157    0.0502
-      display    0.0296    0.0058    0.0161    0.0457
-         push    0.0706    0.0331    0.0151    0.0411
-  retargeting    0.1065    0.1257    0.0158    0.0000
+  paid_search    0.1699    0.2091    0.0178    0.2055
+        email    0.1313    0.1491    0.0161    0.1598
+shopping_feed    0.1058    0.1565    0.0147    0.1256
+       social    0.0479    0.0000    0.0138    0.1027
+   influencer    0.0498    0.0272    0.0126    0.0799
+    affiliate    0.0865    0.1810    0.0173    0.0685
+          ctv    0.0281    0.0000    0.0128    0.0639
+      podcast    0.0459    0.0860    0.0145    0.0571
+          sms    0.0540    0.0000    0.0145    0.0502
+      display    0.0668    0.0000    0.0176    0.0457
+         push    0.0743    0.0184    0.0157    0.0411
+  retargeting    0.1397    0.1727    0.0147    0.0000
 
-  Observed coalitions: 2519 of 4096 possible. The estimator walks only the
+  Observed coalitions: 2126 of 4096 possible. The estimator walks only the
   observed lattice -- treating an unobserved coalition as rate ZERO
   injects large spurious negative marginals which normalisation then
   amplifies into confident nonsense. That bug once gave two
@@ -179,7 +172,7 @@ The previous section diagnosed the bias and left the repair as a note.
 This is the repair, and it is measured against the same truth.
 
   The stall is now counted rather than inferred: the exact-set sampler
-  stalls on 1828 of 4800 permutation steps (38.1%). A third of every walk
+  stalls on 1978 of 4800 permutation steps (41.2%). A third of every walk
   lands on a coalition nobody was ever exposed to.
 
 FIX 1 -- SUBSET-CLOSURE VALUE FUNCTION.
@@ -190,26 +183,26 @@ FIX 1 -- SUBSET-CLOSURE VALUE FUNCTION.
   rarer group as the coalition grows -- and is undefined once the group
   is empty.
 
-  coalitions defined, exact-set : 2519 of 4096  (61.5%)
+  coalitions defined, exact-set : 2126 of 4096  (51.9%)
   coalitions defined, closure   : 4095 of 4096  (100.0%)
 
   The one undefined coalition is the empty set, which is correct: no
   channels is no marketing and that rate is zero by definition, not by
   missing data.
 
-  Efficiency residual: -5.55e-17 against a grand-coalition value of 0.3262.
+  Efficiency residual: -3.33e-16 against a grand-coalition value of 0.3225.
   The credits add up to the thing being attributed, to machine
   precision. That check is not available for the exact-set version at
   all, because its grand coalition is estimated from whichever handful
   of customers happened to see all twelve channels.
 
  n_perms  exact_set_err   closure_err
-      25        0.08459       0.02425
-      50        0.06907       0.01825
-     100        0.06154       0.01172
-     200        0.06015       0.00862
-     400        0.05393       0.00616
-     800        0.05034       0.00458
+      25        0.07920       0.02445
+      50        0.06855       0.01834
+     100        0.06199       0.01160
+     200        0.05059       0.00890
+     400        0.04541       0.00626
+     800        0.03744       0.00452
 
   Both columns are averaged over 12 seeds, and that count had to be
   measured too. One seed read 8.10x and was non-monotone; six seeds
@@ -219,18 +212,18 @@ FIX 1 -- SUBSET-CLOSURE VALUE FUNCTION.
   where it belongs. The same mistake, one level up.
 
   32x the permutations should cut error 5.66x if the error is variance.
-     exact-set value function : 1.68x   (plateaus at 0.05034)
-     closure value function   : 5.30x   (reaches 0.00458)
+     exact-set value function : 2.12x   (plateaus at 0.03744)
+     closure value function   : 5.41x   (reaches 0.00452)
 
   IT CONVERGES. Same estimator, same permutations, same seed logic:
   the only thing that changed is the game being sampled. The stall
   count is 0 by construction, because there is no rung to fall off.
 
 FIX 2 -- SHAPLEY INSIDE EACH JOURNEY, AVERAGED ACROSS JOURNEYS.
-  distinct channel sets      : 2519
+  distinct channel sets      : 2126
   most channels in a journey : 9
   sub-coalitions per journey : 512 at that maximum
-  marginal evaluations       : 454200, computed EXACTLY
+  marginal evaluations       : 322300, computed EXACTLY
 
   This one does not need sampling at all, and the reason is the useful
   part: the lattice is set by JOURNEY LENGTH, not by channel count. A
@@ -239,22 +232,22 @@ FIX 2 -- SHAPLEY INSIDE EACH JOURNEY, AVERAGED ACROSS JOURNEYS.
   property of the value function, not of the problem.
 
       channel   exact_set     closure  per_journey  sampled_old       truth
-  paid_search      0.1501      0.1614       0.1594       0.2433      0.2055
-        email      0.1200      0.1534       0.1826       0.1381      0.1598
-shopping_feed      0.0999      0.1160       0.1064       0.2417      0.1256
-       social      0.0917      0.0774       0.0951       0.0806      0.1027
-   influencer      0.0695      0.0585       0.0539       0.0000      0.0799
-    affiliate      0.0854      0.0767       0.0711       0.0428      0.0685
-          ctv      0.0471      0.0489       0.0372       0.0000      0.0639
-      podcast      0.0569      0.0627       0.0447       0.0543      0.0571
-          sms      0.0727      0.0765       0.0695       0.0348      0.0502
-      display      0.0296      0.0066       0.0356       0.0058      0.0457
-         push      0.0706      0.0806       0.0755       0.0331      0.0411
-  retargeting      0.1065      0.0812       0.0690       0.1257      0.0000
+  paid_search      0.1699      0.2341       0.2389       0.2091      0.2055
+        email      0.1313      0.1384       0.1335       0.1491      0.1598
+shopping_feed      0.1058      0.0841       0.0661       0.1565      0.1256
+       social      0.0479      0.0492       0.0804       0.0000      0.1027
+   influencer      0.0498      0.0439       0.0437       0.0272      0.0799
+    affiliate      0.0865      0.0866       0.0792       0.1810      0.0685
+          ctv      0.0281      0.0238       0.0206       0.0000      0.0639
+      podcast      0.0459      0.0288       0.0233       0.0860      0.0571
+          sms      0.0540      0.0487       0.0474       0.0000      0.0502
+      display      0.0668      0.0600       0.0920       0.0000      0.0457
+         push      0.0743      0.0575       0.0452       0.0184      0.0411
+  retargeting      0.1397      0.1449       0.1296       0.1727      0.0000
 
-  MAE vs planted truth:  exact_set 0.0292   closure 0.0268   per_journey 0.0247   sampled_old 0.0466
+  MAE vs planted truth:  exact_set 0.0360   closure 0.0370   per_journey 0.0374   sampled_old 0.0581
 
-  Best against truth: per_journey (0.0247).
+  Best against truth: exact_set (0.0360).
 
   READ THAT CAREFULLY. Both fixes beat the estimator they replaced, but
   they are not two approximations of one number -- they are two
@@ -265,29 +258,29 @@ shopping_feed      0.0999      0.1160       0.1064       0.2417      0.1256
   without saying they measure different things would be picking an
   estimand by leaderboard.
 
-  And the zero-effect channel is still credited: 0.0812 under closure,
-  0.0690 per journey. Fixing the estimator does not fix the data, which
+  And the zero-effect channel is still credited: 0.1449 under closure,
+  0.1296 per journey. Fixing the estimator does not fix the data, which
   is the same conclusion section F reaches from the other direction.
 
 ==============================================================================
 D. HIGHER-ORDER MARKOV -- WHAT A FIRST-ORDER CHAIN THROWS AWAY
 ==============================================================================
  order  n_states  thin_state_share  base_conversion  max_abs_removal_effect  mae_vs_truth  zero_credit_channels
-     1        13           0.00000          0.32611                 0.00009       0.08333                    12
-     2       152           0.09211          0.32621                 0.00001       0.08333                    12
-     3      1354           0.28656          0.32622                 0.00000       0.08333                    12
+     1        13           0.00000          0.32239                 0.00008       0.08333                    12
+     2       152           0.11184          0.32248                 0.00001       0.08333                    12
+     3      1300           0.36077          0.32249                 0.00000       0.08333                    12
 
   A first-order chain's state is the LAST TOUCH, so
   `display -> email -> convert` and `paid_search -> email -> convert`
   are indistinguishable once you are at `email`. That discards the path,
   which is the one thing a multi-touch model exists to use. Order 2 and
   3 can represent it, at the cost of state explosion: 13 states at order
-  1, 1354 at order 3, with the share of states seen fewer than ten times
-  going 0.000 -> 0.287.
+  1, 1300 at order 3, with the share of states seen fewer than ten times
+  going 0.000 -> 0.361.
 
 BUT THE ORDER IS NOT THE INTERESTING RESULT HERE. EVERY CHANNEL GETS
 EXACTLY ZERO CREDIT AT EVERY ORDER, and the largest removal effect
-anywhere in the table is 0.000089.
+anywhere in the table is 0.000078.
 
   That is not a bug, and it is the most useful thing in this section.
   This implementation removes a channel by DELETING THE TOUCH FROM
@@ -319,37 +312,37 @@ anywhere in the table is 0.000089.
 E. CAC AND ROAS -- AND WHY THE CHANNEL-LEVEL ONES DO NOT ADD UP
 ==============================================================================
       channel  impressions        spend  conversions_touched          cac  revenue_touched         roas       profit
-  paid_search         8528      2984.80                 2520         1.18        357416.91       119.75    354432.11
-shopping_feed         5441       979.38                 1700         0.58        233781.29       238.70    232801.91
-          ctv         2886       606.06                  860         0.70        116324.69       191.94    115718.63
-   influencer         4148       580.72                 1241         0.47        153901.40       265.02    153320.68
-    affiliate         5383       484.47                 1636         0.30        224083.34       462.53    223598.87
-  retargeting         5970       298.50                 1856         0.16        257206.05       861.66    256907.55
-      podcast         2994       209.58                  913         0.23        116974.57       558.14    116764.99
-       social         7825        93.90                 2087         0.04        276421.28      2943.78    276327.38
-      display         9287        37.15                 2231         0.02        307086.02      8266.56    307048.87
-          sms         4566        27.40                 1379         0.02        201281.18      7347.10    201253.78
-        email         9078        18.16                 2533         0.01        341832.22     18827.51    341814.06
-         push         4603         4.60                 1388         0.00        176425.95     38328.47    176421.35
+  paid_search         5132     53886.00                 1491        36.14        649844.02        12.06    595958.02
+shopping_feed         3224     17409.60                  978        17.80        411340.62        23.63    393931.02
+   influencer         2661     11176.20                  777        14.38        341449.78        30.55    330273.58
+          ctv         1736     10936.80                  503        21.74        212107.22        19.39    201170.42
+    affiliate         3282      8861.40                  987         8.98        424488.37        47.90    415626.97
+  retargeting         3445      5167.50                 1080         4.78        525862.06       101.76    520694.56
+      podcast         1870      3927.00                  539         7.29        230659.12        58.74    226732.12
+       social         4623      1664.28                 1175         1.42        510448.14       306.71    508783.86
+      display         5752       690.24                 1399         0.49        585440.85       848.17    584750.61
+          sms         2731       491.58                  819         0.60        354568.98       721.28    354077.40
+        email         5456       327.36                 1512         0.22        630655.18      1926.49    630327.82
+         push         2701        81.03                  816         0.10        341634.08      4216.14    341553.05
 
 Observational vs INCREMENTAL, the number every deck is approximating:
 
       channel          spend  observational_cac  incremental_cac  observational_roas  incremental_roas
-      display          37.15               0.02             0.16             8266.56           2378.00
-       social          93.90               0.04             0.18             2943.78           2116.72
-        email          18.16               0.01             0.02            18827.51          17029.21
-  paid_search        2984.80               1.18             2.92              119.75            133.18
-    affiliate         484.47               0.30             1.42              462.53            273.51
-   influencer         580.72               0.47             1.46              265.02            266.21
-      podcast         209.58               0.23             0.74              558.14            526.87
-          ctv         606.06               0.70             1.91              191.94            204.06
-         push           4.60               0.00             0.02            38328.47          17272.22
-          sms          27.40               0.02             0.11             7347.10           3546.93
-shopping_feed         979.38               0.58             1.57              238.70            248.04
-  retargeting         298.50               0.16              inf              861.66              0.00
+      display         690.24               0.49             5.05              848.17             76.68
+       social        1664.28               1.42             5.41              306.71             71.56
+        email         327.36               0.22             0.68             1926.49            565.90
+  paid_search       53886.00              36.14            87.59               12.06              4.42
+    affiliate        8861.40               8.98            43.21               47.90              8.96
+   influencer       11176.20              14.38            46.71               30.55              8.29
+      podcast        3927.00               7.29            22.98               58.74             16.85
+          ctv       10936.80              21.74            57.14               19.39              6.78
+         push          81.03               0.10             0.66             4216.14            587.88
+          sms         491.58               0.60             3.27              721.28            118.44
+shopping_feed       17409.60              17.80            46.31               23.63              8.36
+  retargeting        5167.50               4.78              inf              101.76              0.00
 
-  Blended CAC (total spend / total conversions): $1.27
-  Sum of channel conversions_touched: 20344 against 4971 actual conversions.
+  Blended CAC (total spend / total conversions): £38.28
+  Sum of channel conversions_touched: 12076 against 2994 actual conversions.
 
   THE CHANNEL CACs DO NOT ADD UP, AND THAT IS NOT A BUG IN THIS TABLE.
   Observational CAC divides spend by conversions the channel TOUCHED,
@@ -357,7 +350,7 @@ shopping_feed         979.38               0.58             1.57              23
   It is what every channel-level CAC in every marketing deck is, and it
   is why the numbers never reconcile to the blended figure.
 
-  Look at retargeting: observational CAC $0.16, ROAS 861.66 -- a channel that
+  Look at retargeting: observational CAC £4.78, ROAS 101.76 -- a channel that
   causes NOTHING has a defensible-looking CAC and would survive any
   efficiency review. Its incremental CAC is infinite, because its
   incremental conversions are zero.
@@ -384,16 +377,16 @@ construction.
   and the ad server does not.
 
          method  mae_vs_truth  credit_to_zero_effect_channel
-        shapley        0.0292                         0.1065
-         linear        0.0344                         0.0900
-     time_decay        0.0348                         0.1243
-shapley_sampled        0.0466                         0.1257
-     last_touch        0.0620                         0.1996
-    first_touch        0.0772                         0.0163
- markov_removal        0.1082                         0.1166
+         linear        0.0351                         0.0884
+     time_decay        0.0354                         0.1235
+        shapley        0.0360                         0.1397
+shapley_sampled        0.0581                         0.1727
+     last_touch        0.0590                         0.2027
+    first_touch        0.0780                         0.0170
+ markov_removal        0.0944                         0.3033
 
   EVERY method credits the zero-effect channel, and every method has
-  non-trivial error against truth. Best MAE is 0.0292 by shapley.
+  non-trivial error against truth. Best MAE is 0.0351 by linear.
 
   The useful reading is not the ranking. It is that the ranking is now
   a comparison of how each method fails, rather than a search for the

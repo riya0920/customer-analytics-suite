@@ -163,7 +163,7 @@ def test_markov_removal_ranks_a_necessary_channel_highest():
 def test_planted_channel_has_zero_true_effect_but_is_credited():
     """If the generated data does not reproduce this, section 4 is fiction."""
     if not os.path.exists(os.path.join(DATA, "TRUTH.json")):
-        pytest.skip("run `python src/generate.py` first")
+        pytest.skip("run `python src/build_data.py` first")
     with open(os.path.join(DATA, "TRUTH.json")) as f:
         truth = json.load(f)
     with open(os.path.join(DATA, "journeys.json")) as f:

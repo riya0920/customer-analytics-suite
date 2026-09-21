@@ -141,7 +141,7 @@ def test_shapley_returns_nothing_when_nothing_is_identifiable():
 # --------------------------------------------------------------------------
 def test_generated_journeys_carry_customer_ids_and_timestamps():
     if not os.path.exists(os.path.join(DATA, "journeys.json")):
-        pytest.skip("run `python src/generate.py` first")
+        pytest.skip("run `python src/build_data.py` first")
     with open(os.path.join(DATA, "journeys.json")) as f:
         jd = json.load(f)
     assert "customer_id" in jd and "touch_days" in jd
@@ -161,7 +161,7 @@ def test_customers_now_have_MULTIPLE_journeys():
     journey per customer, which was true and was the defect.
     """
     if not os.path.exists(os.path.join(DATA, "journeys.json")):
-        pytest.skip("run `python src/generate.py` first")
+        pytest.skip("run `python src/build_data.py` first")
     with open(os.path.join(DATA, "journeys.json")) as f:
         jd = json.load(f)
     ids = jd["customer_id"]
@@ -180,7 +180,7 @@ def test_even_shapley_credits_the_planted_channel():
     dummy-player axiom, so if IT credits the zero-effect channel, the problem is
     definitively the DATA (a targeted confound) and not the estimator."""
     if not os.path.exists(os.path.join(DATA, "TRUTH.json")):
-        pytest.skip("run `python src/generate.py` first")
+        pytest.skip("run `python src/build_data.py` first")
     with open(os.path.join(DATA, "TRUTH.json")) as f:
         truth = json.load(f)
     with open(os.path.join(DATA, "journeys.json")) as f:

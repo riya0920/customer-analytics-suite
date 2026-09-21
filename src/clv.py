@@ -120,7 +120,12 @@ class BGNBD:
     def expected_purchases(self, t, x, t_x, T):
         """E[Y(t) | x, t_x, T] -- expected repeat purchases in the NEXT t days."""
         r, alpha, a, b = self.r, self.alpha, self.a, self.b
-        first = (a + b + x - 1) / (a - 1) if a > 1 else (a + b + x - 1) / 1e-6
+        # Valid for any a != 1. When a < 1 both this factor and `term` below are
+        # negative and the product is positive. The first version replaced
+        # (a - 1) with 1e-6 whenever a <= 1, which flips the sign and blows the
+        # prediction up by a factor of a million. Simulated data always fitted
+        # a > 1, so it never showed; real Online Retail II fits a ~ 0.15.
+        first = (a + b + x - 1) / (a - 1 if abs(a - 1) > 1e-9 else 1e-9)
         z = t / (alpha + T + t)
         term = 1.0 - ((alpha + T) / (alpha + T + t)) ** (r + x) * \
             hyp2f1(r + x, b + x, a + b + x - 1, z)

@@ -1,2 +1,2 @@
 total_customers,n_segments,top20pct_value_share,clv_rank_spearman,best_attribution_mae,n_channels
-8000,5,0.766,0.7366,0.0292,12
+4899,5,0.6885,0.6284,0.035,12

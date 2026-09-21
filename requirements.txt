@@ -4,6 +4,7 @@ pandas
 pytest
 scikit-learn
 scipy
+openpyxl
 sqlglot
 # REST API (api/) serving the dashboard data
 fastapi

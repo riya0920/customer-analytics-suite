@@ -3,19 +3,19 @@
     {
       "task": "land_raw",
       "status": "ok",
-      "seconds": 3.4390344619750977,
+      "seconds": 0.9503917694091797,
       "attempt": 1
     },
     {
       "task": "dbt_build",
       "status": "ok",
-      "seconds": 59.05861473083496,
+      "seconds": 15.287113666534424,
       "attempt": 1
     },
     {
       "task": "read_marts",
       "status": "ok",
-      "seconds": 0.3171975612640381,
+      "seconds": 0.0865774154663086,
       "attempt": 1
     }
   ],
@@ -23,122 +23,122 @@
     "table": [
       {
         "k": 2,
-        "inertia": 30865.662,
-        "silhouette": 0.2046,
-        "calinski_harabasz": 2200.0497,
-        "davies_bouldin": 1.7363,
-        "smallest_cluster_share": 0.3786,
-        "mean_ari": 0.9409,
-        "min_ari": 0.8748,
-        "eta_squared": 0.1867,
-        "adjusted_eta_squared": 0.1866,
-        "spread": 307.3713
+        "inertia": 18392.8429,
+        "silhouette": 0.2551,
+        "calinski_harabasz": 1624.668,
+        "davies_bouldin": 1.5903,
+        "smallest_cluster_share": 0.4274,
+        "mean_ari": 0.9341,
+        "min_ari": 0.9043,
+        "eta_squared": 0.0252,
+        "adjusted_eta_squared": 0.025,
+        "spread": 1660.8724
       },
       {
         "k": 3,
-        "inertia": 25764.2627,
-        "silhouette": 0.2091,
-        "calinski_harabasz": 2098.8796,
-        "davies_bouldin": 1.6358,
-        "smallest_cluster_share": 0.3176,
-        "mean_ari": 0.9423,
-        "min_ari": 0.8863,
-        "eta_squared": 0.2199,
-        "adjusted_eta_squared": 0.2197,
-        "spread": 351.111
+        "inertia": 15174.1647,
+        "silhouette": 0.2169,
+        "calinski_harabasz": 1503.7303,
+        "davies_bouldin": 1.4782,
+        "smallest_cluster_share": 0.277,
+        "mean_ari": 0.7658,
+        "min_ari": 0.3571,
+        "eta_squared": 0.0364,
+        "adjusted_eta_squared": 0.036,
+        "spread": 2326.5712
       },
       {
         "k": 4,
-        "inertia": 22703.7862,
-        "silhouette": 0.1996,
-        "calinski_harabasz": 1942.2025,
-        "davies_bouldin": 1.4915,
-        "smallest_cluster_share": 0.2143,
-        "mean_ari": 0.9007,
-        "min_ari": 0.87,
-        "eta_squared": 0.2588,
-        "adjusted_eta_squared": 0.2585,
-        "spread": 408.4944
+        "inertia": 12347.63,
+        "silhouette": 0.2552,
+        "calinski_harabasz": 1605.216,
+        "davies_bouldin": 1.2548,
+        "smallest_cluster_share": 0.1598,
+        "mean_ari": 0.9538,
+        "min_ari": 0.9188,
+        "eta_squared": 0.0393,
+        "adjusted_eta_squared": 0.0387,
+        "spread": 2532.1241
       },
       {
         "k": 5,
-        "inertia": 20731.0438,
-        "silhouette": 0.1857,
-        "calinski_harabasz": 1782.7557,
-        "davies_bouldin": 1.5522,
-        "smallest_cluster_share": 0.1779,
-        "mean_ari": 0.6707,
-        "min_ari": 0.4487,
-        "eta_squared": 0.2991,
-        "adjusted_eta_squared": 0.2987,
-        "spread": 487.4936
+        "inertia": 11371.7019,
+        "silhouette": 0.2329,
+        "calinski_harabasz": 1411.9619,
+        "davies_bouldin": 1.4303,
+        "smallest_cluster_share": 0.14,
+        "mean_ari": 0.7356,
+        "min_ari": 0.4443,
+        "eta_squared": 0.0666,
+        "adjusted_eta_squared": 0.0659,
+        "spread": 4070.555
       },
       {
         "k": 6,
-        "inertia": 19059.5512,
-        "silhouette": 0.1852,
-        "calinski_harabasz": 1689.43,
-        "davies_bouldin": 1.4489,
-        "smallest_cluster_share": 0.1207,
-        "mean_ari": 0.6562,
-        "min_ari": 0.4053,
-        "eta_squared": 0.313,
-        "adjusted_eta_squared": 0.3125,
-        "spread": 506.4797
+        "inertia": 10434.0681,
+        "silhouette": 0.2053,
+        "calinski_harabasz": 1318.7701,
+        "davies_bouldin": 1.3912,
+        "smallest_cluster_share": 0.1274,
+        "mean_ari": 0.8717,
+        "min_ari": 0.7782,
+        "eta_squared": 0.0709,
+        "adjusted_eta_squared": 0.0699,
+        "spread": 4338.2391
       },
       {
         "k": 7,
-        "inertia": 17718.6259,
-        "silhouette": 0.1863,
-        "calinski_harabasz": 1613.6835,
-        "davies_bouldin": 1.4119,
-        "smallest_cluster_share": 0.1065,
-        "mean_ari": 0.7499,
-        "min_ari": 0.6226,
-        "eta_squared": 0.3072,
-        "adjusted_eta_squared": 0.3066,
-        "spread": 516.445
+        "inertia": 9711.7149,
+        "silhouette": 0.2083,
+        "calinski_harabasz": 1241.1131,
+        "davies_bouldin": 1.3346,
+        "smallest_cluster_share": 0.1106,
+        "mean_ari": 0.8952,
+        "min_ari": 0.7955,
+        "eta_squared": 0.0719,
+        "adjusted_eta_squared": 0.0708,
+        "spread": 4476.1171
       },
       {
         "k": 8,
-        "inertia": 16612.9454,
-        "silhouette": 0.1907,
-        "calinski_harabasz": 1550.033,
-        "davies_bouldin": 1.3726,
-        "smallest_cluster_share": 0.0816,
-        "mean_ari": 0.6345,
-        "min_ari": 0.4254,
-        "eta_squared": 0.3076,
-        "adjusted_eta_squared": 0.307,
-        "spread": 539.5812
+        "inertia": 9192.3463,
+        "silhouette": 0.204,
+        "calinski_harabasz": 1163.1735,
+        "davies_bouldin": 1.3596,
+        "smallest_cluster_share": 0.0708,
+        "mean_ari": 0.7858,
+        "min_ari": 0.5906,
+        "eta_squared": 0.0717,
+        "adjusted_eta_squared": 0.0703,
+        "spread": 4608.2955
       }
     ],
     "picks": {
-      "silhouette (max)": 3,
+      "silhouette (max)": 4,
       "calinski-harabasz (max)": 2,
-      "davies-bouldin (min)": 8,
+      "davies-bouldin (min)": 4,
       "elbow (inertia knee)": 4,
-      "stability (max ARI)": 3,
-      "forward separation (max adj eta^2)": 6
+      "stability (max ARI)": 4,
+      "forward separation (max adj eta^2)": 7
     },
     "hdbscan": [
       {
         "min_cluster_size": 25,
-        "n_clusters": 8,
-        "noise_share": 0.848365847479098,
-        "largest": 363
+        "n_clusters": 5,
+        "noise_share": 0.6197183098591549,
+        "largest": 923
       },
       {
         "min_cluster_size": 50,
         "n_clusters": 2,
-        "noise_share": 0.5562452495566252,
-        "largest": 3228
+        "noise_share": 0.3466013472137171,
+        "largest": 3101
       },
       {
         "min_cluster_size": 100,
-        "n_clusters": 2,
-        "noise_share": 0.6905244489485686,
-        "largest": 2328
+        "n_clusters": 0,
+        "noise_share": 1.0,
+        "largest": 0
       },
       {
         "min_cluster_size": 200,
@@ -158,313 +158,313 @@
     "curve": [
       {
         "n_perms": 25,
-        "mean_abs_error": 0.071254982861458,
-        "max_abs_error": 0.18578124998241408
+        "mean_abs_error": 0.11314474736238449,
+        "max_abs_error": 0.3182861695915294
       },
       {
         "n_perms": 50,
-        "mean_abs_error": 0.07252761491078182,
-        "max_abs_error": 0.21835581983813523
+        "mean_abs_error": 0.10239175336998287,
+        "max_abs_error": 0.19182843726649743
       },
       {
         "n_perms": 100,
-        "mean_abs_error": 0.07302532091119911,
-        "max_abs_error": 0.16347640407772246
+        "mean_abs_error": 0.07916734176687477,
+        "max_abs_error": 0.20552140938464059
       },
       {
         "n_perms": 200,
-        "mean_abs_error": 0.06444861974764103,
-        "max_abs_error": 0.10646072591229754
+        "mean_abs_error": 0.07663122262716092,
+        "max_abs_error": 0.16205816766966566
       },
       {
         "n_perms": 400,
-        "mean_abs_error": 0.0595547639124521,
-        "max_abs_error": 0.13349067967398398
+        "mean_abs_error": 0.056148902452729195,
+        "max_abs_error": 0.13046791222214082
       },
       {
         "n_perms": 800,
-        "mean_abs_error": 0.057230599690370115,
-        "max_abs_error": 0.11743279442045447
+        "mean_abs_error": 0.05065076569862159,
+        "max_abs_error": 0.11629048476680519
       }
     ],
     "comparison": [
       {
         "channel": "paid_search",
-        "exact": 0.1501,
-        "sampled": 0.2433,
-        "se": 0.0163,
+        "exact": 0.1699,
+        "sampled": 0.2091,
+        "se": 0.0178,
         "truth": 0.2055
       },
       {
         "channel": "email",
-        "exact": 0.12,
-        "sampled": 0.1381,
-        "se": 0.0168,
+        "exact": 0.1313,
+        "sampled": 0.1491,
+        "se": 0.0161,
         "truth": 0.1598
       },
       {
         "channel": "shopping_feed",
-        "exact": 0.0999,
-        "sampled": 0.2417,
-        "se": 0.0144,
+        "exact": 0.1058,
+        "sampled": 0.1565,
+        "se": 0.0147,
         "truth": 0.1256
       },
       {
         "channel": "social",
-        "exact": 0.0917,
-        "sampled": 0.0806,
-        "se": 0.0158,
+        "exact": 0.0479,
+        "sampled": 0.0,
+        "se": 0.0138,
         "truth": 0.1027
       },
       {
         "channel": "influencer",
-        "exact": 0.0695,
-        "sampled": 0.0,
-        "se": 0.0142,
+        "exact": 0.0498,
+        "sampled": 0.0272,
+        "se": 0.0126,
         "truth": 0.0799
       },
       {
         "channel": "affiliate",
-        "exact": 0.0854,
-        "sampled": 0.0428,
-        "se": 0.0148,
+        "exact": 0.0865,
+        "sampled": 0.181,
+        "se": 0.0173,
         "truth": 0.0685
       },
       {
         "channel": "ctv",
-        "exact": 0.0471,
+        "exact": 0.0281,
         "sampled": 0.0,
-        "se": 0.0122,
+        "se": 0.0128,
         "truth": 0.0639
       },
       {
         "channel": "podcast",
-        "exact": 0.0569,
-        "sampled": 0.0543,
-        "se": 0.0128,
+        "exact": 0.0459,
+        "sampled": 0.086,
+        "se": 0.0145,
         "truth": 0.0571
       },
       {
         "channel": "sms",
-        "exact": 0.0727,
-        "sampled": 0.0348,
-        "se": 0.0157,
+        "exact": 0.054,
+        "sampled": 0.0,
+        "se": 0.0145,
         "truth": 0.0502
       },
       {
         "channel": "display",
-        "exact": 0.0296,
-        "sampled": 0.0058,
-        "se": 0.0161,
+        "exact": 0.0668,
+        "sampled": 0.0,
+        "se": 0.0176,
         "truth": 0.0457
       },
       {
         "channel": "push",
-        "exact": 0.0706,
-        "sampled": 0.0331,
-        "se": 0.0151,
+        "exact": 0.0743,
+        "sampled": 0.0184,
+        "se": 0.0157,
         "truth": 0.0411
       },
       {
         "channel": "retargeting",
-        "exact": 0.1065,
-        "sampled": 0.1257,
-        "se": 0.0158,
+        "exact": 0.1397,
+        "sampled": 0.1727,
+        "se": 0.0147,
         "truth": 0.0
       }
     ]
   },
   "shapley_fix": {
     "coverage": {
-      "exact_observed": 2519,
+      "exact_observed": 2126,
       "closure_defined": 4095,
       "total": 4096,
-      "exact_coverage": 0.614990234375,
+      "exact_coverage": 0.51904296875,
       "closure_coverage": 0.999755859375
     },
     "curve": [
       {
         "n_perms": 25,
-        "mean_abs_error": 0.02424927798941544,
-        "max_abs_error": 0.0620759580755495,
+        "mean_abs_error": 0.024445995096995868,
+        "max_abs_error": 0.06109991530607551,
         "n_reps": 12
       },
       {
         "n_perms": 50,
-        "mean_abs_error": 0.018250632636343692,
-        "max_abs_error": 0.045427910062969555,
+        "mean_abs_error": 0.018344893013833366,
+        "max_abs_error": 0.051661129136987956,
         "n_reps": 12
       },
       {
         "n_perms": 100,
-        "mean_abs_error": 0.011715052035324788,
-        "max_abs_error": 0.029487543557250497,
+        "mean_abs_error": 0.0116026804673428,
+        "max_abs_error": 0.03304654605926043,
         "n_reps": 12
       },
       {
         "n_perms": 200,
-        "mean_abs_error": 0.008624663323484065,
-        "max_abs_error": 0.024044670040520688,
+        "mean_abs_error": 0.008902774595938367,
+        "max_abs_error": 0.025174394464040448,
         "n_reps": 12
       },
       {
         "n_perms": 400,
-        "mean_abs_error": 0.006156070164060216,
-        "max_abs_error": 0.016365920645618048,
+        "mean_abs_error": 0.006259449645473001,
+        "max_abs_error": 0.016443240027226812,
         "n_reps": 12
       },
       {
         "n_perms": 800,
-        "mean_abs_error": 0.004579611247379414,
-        "max_abs_error": 0.012146155959805276,
+        "mean_abs_error": 0.0045164785127876006,
+        "max_abs_error": 0.011516529843439467,
         "n_reps": 12
       }
     ],
     "curve_exact_set": [
       {
         "n_perms": 25,
-        "mean_abs_error": 0.08459458662863018,
-        "max_abs_error": 0.23630545901179842,
+        "mean_abs_error": 0.07920490191744563,
+        "max_abs_error": 0.2285701058197435,
         "n_reps": 12
       },
       {
         "n_perms": 50,
-        "mean_abs_error": 0.06906998934672237,
-        "max_abs_error": 0.18862145012570183,
+        "mean_abs_error": 0.0685517729862985,
+        "max_abs_error": 0.17699223149899368,
         "n_reps": 12
       },
       {
         "n_perms": 100,
-        "mean_abs_error": 0.061542363536320366,
-        "max_abs_error": 0.15053118498674908,
+        "mean_abs_error": 0.0619910195332222,
+        "max_abs_error": 0.14849217752939556,
         "n_reps": 12
       },
       {
         "n_perms": 200,
-        "mean_abs_error": 0.0601527566275921,
-        "max_abs_error": 0.14847803009615246,
+        "mean_abs_error": 0.05059261451561955,
+        "max_abs_error": 0.13452194633903233,
         "n_reps": 12
       },
       {
         "n_perms": 400,
-        "mean_abs_error": 0.05393064866154403,
-        "max_abs_error": 0.13262077148451695,
+        "mean_abs_error": 0.04540501233529896,
+        "max_abs_error": 0.11778834543654171,
         "n_reps": 12
       },
       {
         "n_perms": 800,
-        "mean_abs_error": 0.05033591738014371,
-        "max_abs_error": 0.1335824813638035,
+        "mean_abs_error": 0.037443140485219774,
+        "max_abs_error": 0.09332602571701754,
         "n_reps": 12
       }
     ],
-    "efficiency_residual": -5.551115123125783e-17,
+    "efficiency_residual": -3.3306690738754696e-16,
     "per_journey": {
-      "distinct_sets": 2519,
+      "distinct_sets": 2126,
       "max_journey_channels": 9,
-      "evaluations": 454200
+      "evaluations": 322300
     },
     "mae": {
-      "exact_set": 0.029223033509901353,
-      "closure": 0.026813881069261098,
-      "per_journey": 0.024668966367613357,
-      "sampled_old": 0.04660156156680426
+      "exact_set": 0.03596735133942066,
+      "closure": 0.037038496636507705,
+      "per_journey": 0.037379055717930265,
+      "sampled_old": 0.0581227020309093
     },
     "comparison": [
       {
         "channel": "paid_search",
-        "exact_set": 0.1501,
-        "closure": 0.1614,
-        "per_journey": 0.1594,
-        "sampled_old": 0.2433,
+        "exact_set": 0.1699,
+        "closure": 0.2341,
+        "per_journey": 0.2389,
+        "sampled_old": 0.2091,
         "truth": 0.2055
       },
       {
         "channel": "email",
-        "exact_set": 0.12,
-        "closure": 0.1534,
-        "per_journey": 0.1826,
-        "sampled_old": 0.1381,
+        "exact_set": 0.1313,
+        "closure": 0.1384,
+        "per_journey": 0.1335,
+        "sampled_old": 0.1491,
         "truth": 0.1598
       },
       {
         "channel": "shopping_feed",
-        "exact_set": 0.0999,
-        "closure": 0.116,
-        "per_journey": 0.1064,
-        "sampled_old": 0.2417,
+        "exact_set": 0.1058,
+        "closure": 0.0841,
+        "per_journey": 0.0661,
+        "sampled_old": 0.1565,
         "truth": 0.1256
       },
       {
         "channel": "social",
-        "exact_set": 0.0917,
-        "closure": 0.0774,
-        "per_journey": 0.0951,
-        "sampled_old": 0.0806,
+        "exact_set": 0.0479,
+        "closure": 0.0492,
+        "per_journey": 0.0804,
+        "sampled_old": 0.0,
         "truth": 0.1027
       },
       {
         "channel": "influencer",
-        "exact_set": 0.0695,
-        "closure": 0.0585,
-        "per_journey": 0.0539,
-        "sampled_old": 0.0,
+        "exact_set": 0.0498,
+        "closure": 0.0439,
+        "per_journey": 0.0437,
+        "sampled_old": 0.0272,
         "truth": 0.0799
       },
       {
         "channel": "affiliate",
-        "exact_set": 0.0854,
-        "closure": 0.0767,
-        "per_journey": 0.0711,
-        "sampled_old": 0.0428,
+        "exact_set": 0.0865,
+        "closure": 0.0866,
+        "per_journey": 0.0792,
+        "sampled_old": 0.181,
         "truth": 0.0685
       },
       {
         "channel": "ctv",
-        "exact_set": 0.0471,
-        "closure": 0.0489,
-        "per_journey": 0.0372,
+        "exact_set": 0.0281,
+        "closure": 0.0238,
+        "per_journey": 0.0206,
         "sampled_old": 0.0,
         "truth": 0.0639
       },
       {
         "channel": "podcast",
-        "exact_set": 0.0569,
-        "closure": 0.0627,
-        "per_journey": 0.0447,
-        "sampled_old": 0.0543,
+        "exact_set": 0.0459,
+        "closure": 0.0288,
+        "per_journey": 0.0233,
+        "sampled_old": 0.086,
         "truth": 0.0571
       },
       {
         "channel": "sms",
-        "exact_set": 0.0727,
-        "closure": 0.0765,
-        "per_journey": 0.0695,
-        "sampled_old": 0.0348,
+        "exact_set": 0.054,
+        "closure": 0.0487,
+        "per_journey": 0.0474,
+        "sampled_old": 0.0,
         "truth": 0.0502
       },
       {
         "channel": "display",
-        "exact_set": 0.0296,
-        "closure": 0.0066,
-        "per_journey": 0.0356,
-        "sampled_old": 0.0058,
+        "exact_set": 0.0668,
+        "closure": 0.06,
+        "per_journey": 0.092,
+        "sampled_old": 0.0,
         "truth": 0.0457
       },
       {
         "channel": "push",
-        "exact_set": 0.0706,
-        "closure": 0.0806,
-        "per_journey": 0.0755,
-        "sampled_old": 0.0331,
+        "exact_set": 0.0743,
+        "closure": 0.0575,
+        "per_journey": 0.0452,
+        "sampled_old": 0.0184,
         "truth": 0.0411
       },
       {
         "channel": "retargeting",
-        "exact_set": 0.1065,
-        "closure": 0.0812,
-        "per_journey": 0.069,
-        "sampled_old": 0.1257,
+        "exact_set": 0.1397,
+        "closure": 0.1449,
+        "per_journey": 0.1296,
+        "sampled_old": 0.1727,
         "truth": 0.0
       }
     ]
@@ -474,7 +474,7 @@
       "order": 1,
       "n_states": 13,
       "thin_state_share": 0.0,
-      "base_conversion": 0.3261,
+      "base_conversion": 0.3224,
       "max_abs_removal_effect": 0.0001,
       "mae_vs_truth": 0.0833,
       "zero_credit_channels": 12
@@ -482,17 +482,17 @@
     {
       "order": 2,
       "n_states": 152,
-      "thin_state_share": 0.0921,
-      "base_conversion": 0.3262,
+      "thin_state_share": 0.1118,
+      "base_conversion": 0.3225,
       "max_abs_removal_effect": 0.0,
       "mae_vs_truth": 0.0833,
       "zero_credit_channels": 12
     },
     {
       "order": 3,
-      "n_states": 1354,
-      "thin_state_share": 0.2866,
-      "base_conversion": 0.3262,
+      "n_states": 1300,
+      "thin_state_share": 0.3608,
+      "base_conversion": 0.3225,
       "max_abs_removal_effect": 0.0,
       "mae_vs_truth": 0.0833,
       "zero_credit_channels": 12
@@ -502,260 +502,260 @@
     "observational": [
       {
         "channel": "paid_search",
-        "impressions": 8528,
-        "spend": 2984.8,
-        "conversions_touched": 2520,
-        "cac": 1.1844,
-        "revenue_touched": 357416.91,
-        "roas": 119.7457,
-        "profit": 354432.11
+        "impressions": 5132,
+        "spend": 53886.0,
+        "conversions_touched": 1491,
+        "cac": 36.1408,
+        "revenue_touched": 649844.0204,
+        "roas": 12.0596,
+        "profit": 595958.0204
       },
       {
         "channel": "shopping_feed",
-        "impressions": 5441,
-        "spend": 979.38,
-        "conversions_touched": 1700,
-        "cac": 0.5761,
-        "revenue_touched": 233781.29,
-        "roas": 238.7034,
-        "profit": 232801.91
-      },
-      {
-        "channel": "ctv",
-        "impressions": 2886,
-        "spend": 606.06,
-        "conversions_touched": 860,
-        "cac": 0.7047,
-        "revenue_touched": 116324.69,
-        "roas": 191.9359,
-        "profit": 115718.63
+        "impressions": 3224,
+        "spend": 17409.6,
+        "conversions_touched": 978,
+        "cac": 17.8012,
+        "revenue_touched": 411340.6204,
+        "roas": 23.6272,
+        "profit": 393931.0204
       },
       {
         "channel": "influencer",
-        "impressions": 4148,
-        "spend": 580.72,
-        "conversions_touched": 1241,
-        "cac": 0.4679,
-        "revenue_touched": 153901.4,
-        "roas": 265.0183,
-        "profit": 153320.68
+        "impressions": 2661,
+        "spend": 11176.2,
+        "conversions_touched": 777,
+        "cac": 14.3838,
+        "revenue_touched": 341449.7769,
+        "roas": 30.5515,
+        "profit": 330273.5769
+      },
+      {
+        "channel": "ctv",
+        "impressions": 1736,
+        "spend": 10936.8,
+        "conversions_touched": 503,
+        "cac": 21.7431,
+        "revenue_touched": 212107.2182,
+        "roas": 19.3939,
+        "profit": 201170.4182
       },
       {
         "channel": "affiliate",
-        "impressions": 5383,
-        "spend": 484.47,
-        "conversions_touched": 1636,
-        "cac": 0.2961,
-        "revenue_touched": 224083.34,
-        "roas": 462.533,
-        "profit": 223598.87
+        "impressions": 3282,
+        "spend": 8861.4,
+        "conversions_touched": 987,
+        "cac": 8.9781,
+        "revenue_touched": 424488.375,
+        "roas": 47.9031,
+        "profit": 415626.975
       },
       {
         "channel": "retargeting",
-        "impressions": 5970,
-        "spend": 298.5,
-        "conversions_touched": 1856,
-        "cac": 0.1608,
-        "revenue_touched": 257206.05,
-        "roas": 861.6618,
-        "profit": 256907.55
+        "impressions": 3445,
+        "spend": 5167.5,
+        "conversions_touched": 1080,
+        "cac": 4.7847,
+        "revenue_touched": 525862.061,
+        "roas": 101.7633,
+        "profit": 520694.561
       },
       {
         "channel": "podcast",
-        "impressions": 2994,
-        "spend": 209.58,
-        "conversions_touched": 913,
-        "cac": 0.2296,
-        "revenue_touched": 116974.57,
-        "roas": 558.138,
-        "profit": 116764.99
+        "impressions": 1870,
+        "spend": 3927.0,
+        "conversions_touched": 539,
+        "cac": 7.2857,
+        "revenue_touched": 230659.1215,
+        "roas": 58.7367,
+        "profit": 226732.1215
       },
       {
         "channel": "social",
-        "impressions": 7825,
-        "spend": 93.9,
-        "conversions_touched": 2087,
-        "cac": 0.045,
-        "revenue_touched": 276421.28,
-        "roas": 2943.7836,
-        "profit": 276327.38
+        "impressions": 4623,
+        "spend": 1664.28,
+        "conversions_touched": 1175,
+        "cac": 1.4164,
+        "revenue_touched": 510448.143,
+        "roas": 306.7081,
+        "profit": 508783.863
       },
       {
         "channel": "display",
-        "impressions": 9287,
-        "spend": 37.148,
-        "conversions_touched": 2231,
-        "cac": 0.0167,
-        "revenue_touched": 307086.02,
-        "roas": 8266.5559,
-        "profit": 307048.872
+        "impressions": 5752,
+        "spend": 690.24,
+        "conversions_touched": 1399,
+        "cac": 0.4934,
+        "revenue_touched": 585440.8464,
+        "roas": 848.17,
+        "profit": 584750.6064
       },
       {
         "channel": "sms",
-        "impressions": 4566,
-        "spend": 27.396,
-        "conversions_touched": 1379,
-        "cac": 0.0199,
-        "revenue_touched": 201281.18,
-        "roas": 7347.101,
-        "profit": 201253.784
+        "impressions": 2731,
+        "spend": 491.58,
+        "conversions_touched": 819,
+        "cac": 0.6002,
+        "revenue_touched": 354568.9754,
+        "roas": 721.2844,
+        "profit": 354077.3954
       },
       {
         "channel": "email",
-        "impressions": 9078,
-        "spend": 18.156,
-        "conversions_touched": 2533,
-        "cac": 0.0072,
-        "revenue_touched": 341832.22,
-        "roas": 18827.5072,
-        "profit": 341814.064
+        "impressions": 5456,
+        "spend": 327.36,
+        "conversions_touched": 1512,
+        "cac": 0.2165,
+        "revenue_touched": 630655.1797,
+        "roas": 1926.4882,
+        "profit": 630327.8197
       },
       {
         "channel": "push",
-        "impressions": 4603,
-        "spend": 4.603,
-        "conversions_touched": 1388,
-        "cac": 0.0033,
-        "revenue_touched": 176425.95,
-        "roas": 38328.4706,
-        "profit": 176421.347
+        "impressions": 2701,
+        "spend": 81.03,
+        "conversions_touched": 816,
+        "cac": 0.0993,
+        "revenue_touched": 341634.0779,
+        "roas": 4216.1431,
+        "profit": 341553.0479
       }
     ],
     "incremental": [
       {
         "channel": "display",
-        "spend": 37.148,
-        "observational_cac": 0.0167,
-        "incremental_cac": 0.1637,
-        "observational_roas": 8266.5559,
-        "incremental_roas": 2377.997
+        "spend": 690.24,
+        "observational_cac": 0.4934,
+        "incremental_cac": 5.0488,
+        "observational_roas": 848.17,
+        "incremental_roas": 76.682
       },
       {
         "channel": "social",
-        "spend": 93.9,
-        "observational_cac": 0.045,
-        "incremental_cac": 0.1839,
-        "observational_roas": 2943.7836,
-        "incremental_roas": 2116.7213
+        "spend": 1664.28,
+        "observational_cac": 1.4164,
+        "incremental_cac": 5.4105,
+        "observational_roas": 306.7081,
+        "incremental_roas": 71.5566
       },
       {
         "channel": "email",
-        "spend": 18.156,
-        "observational_cac": 0.0072,
-        "incremental_cac": 0.0229,
-        "observational_roas": 18827.5072,
-        "incremental_roas": 17029.2146
+        "spend": 327.36,
+        "observational_cac": 0.2165,
+        "incremental_cac": 0.6841,
+        "observational_roas": 1926.4882,
+        "incremental_roas": 565.8953
       },
       {
         "channel": "paid_search",
-        "spend": 2984.8,
-        "observational_cac": 1.1844,
-        "incremental_cac": 2.9222,
-        "observational_roas": 119.7457,
-        "incremental_roas": 133.1815
+        "spend": 53886.0,
+        "observational_cac": 36.1408,
+        "incremental_cac": 87.5902,
+        "observational_roas": 12.0596,
+        "incremental_roas": 4.4201
       },
       {
         "channel": "affiliate",
-        "spend": 484.47,
-        "observational_cac": 0.2961,
-        "incremental_cac": 1.4229,
-        "observational_roas": 462.533,
-        "incremental_roas": 273.5087
+        "spend": 8861.4,
+        "observational_cac": 8.9781,
+        "incremental_cac": 43.2119,
+        "observational_roas": 47.9031,
+        "incremental_roas": 8.9595
       },
       {
         "channel": "influencer",
-        "spend": 580.72,
-        "observational_cac": 0.4679,
-        "incremental_cac": 1.4619,
-        "observational_roas": 265.0183,
-        "incremental_roas": 266.2061
+        "spend": 11176.2,
+        "observational_cac": 14.3838,
+        "incremental_cac": 46.7141,
+        "observational_roas": 30.5515,
+        "incremental_roas": 8.2878
       },
       {
         "channel": "podcast",
-        "spend": 209.58,
-        "observational_cac": 0.2296,
-        "incremental_cac": 0.7387,
-        "observational_roas": 558.138,
-        "incremental_roas": 526.8742
+        "spend": 3927.0,
+        "observational_cac": 7.2857,
+        "incremental_cac": 22.9796,
+        "observational_roas": 58.7367,
+        "incremental_roas": 16.8478
       },
       {
         "channel": "ctv",
-        "spend": 606.06,
-        "observational_cac": 0.7047,
-        "incremental_cac": 1.9072,
-        "observational_roas": 191.9359,
-        "incremental_roas": 204.0606
+        "spend": 10936.8,
+        "observational_cac": 21.7431,
+        "incremental_cac": 57.1419,
+        "observational_roas": 19.3939,
+        "incremental_roas": 6.7753
       },
       {
         "channel": "push",
-        "spend": 4.603,
-        "observational_cac": 0.0033,
-        "incremental_cac": 0.0225,
-        "observational_roas": 38328.4706,
-        "incremental_roas": 17272.2248
+        "spend": 81.03,
+        "observational_cac": 0.0993,
+        "incremental_cac": 0.6586,
+        "observational_roas": 4216.1431,
+        "incremental_roas": 587.8822
       },
       {
         "channel": "sms",
-        "spend": 27.396,
-        "observational_cac": 0.0199,
-        "incremental_cac": 0.1097,
-        "observational_roas": 7347.101,
-        "incremental_roas": 3546.9272
+        "spend": 491.58,
+        "observational_cac": 0.6002,
+        "incremental_cac": 3.2688,
+        "observational_roas": 721.2844,
+        "incremental_roas": 118.4383
       },
       {
         "channel": "shopping_feed",
-        "spend": 979.38,
-        "observational_cac": 0.5761,
-        "incremental_cac": 1.569,
-        "observational_roas": 238.7034,
-        "incremental_roas": 248.0437
+        "spend": 17409.6,
+        "observational_cac": 17.8012,
+        "incremental_cac": 46.3072,
+        "observational_roas": 23.6272,
+        "incremental_roas": 8.3606
       },
       {
         "channel": "retargeting",
-        "spend": 298.5,
-        "observational_cac": 0.1608,
+        "spend": 5167.5,
+        "observational_cac": 4.7847,
         "incremental_cac": Infinity,
-        "observational_roas": 861.6618,
+        "observational_roas": 101.7633,
         "incremental_roas": 0.0
       }
     ],
-    "blended_cac": 1.2723220679943672
+    "blended_cac": 38.282895791583165
   },
   "confounded_methods": [
     {
-      "method": "shapley",
-      "mae_vs_truth": 0.0292,
-      "credit_to_zero_effect_channel": 0.1065
-    },
-    {
       "method": "linear",
-      "mae_vs_truth": 0.0344,
-      "credit_to_zero_effect_channel": 0.09
+      "mae_vs_truth": 0.0351,
+      "credit_to_zero_effect_channel": 0.0884
     },
     {
       "method": "time_decay",
-      "mae_vs_truth": 0.0348,
-      "credit_to_zero_effect_channel": 0.1243
+      "mae_vs_truth": 0.0354,
+      "credit_to_zero_effect_channel": 0.1235
+    },
+    {
+      "method": "shapley",
+      "mae_vs_truth": 0.036,
+      "credit_to_zero_effect_channel": 0.1397
     },
     {
       "method": "shapley_sampled",
-      "mae_vs_truth": 0.0466,
-      "credit_to_zero_effect_channel": 0.1257
+      "mae_vs_truth": 0.0581,
+      "credit_to_zero_effect_channel": 0.1727
     },
     {
       "method": "last_touch",
-      "mae_vs_truth": 0.062,
-      "credit_to_zero_effect_channel": 0.1996
+      "mae_vs_truth": 0.059,
+      "credit_to_zero_effect_channel": 0.2027
     },
     {
       "method": "first_touch",
-      "mae_vs_truth": 0.0772,
-      "credit_to_zero_effect_channel": 0.0163
+      "mae_vs_truth": 0.078,
+      "credit_to_zero_effect_channel": 0.017
     },
     {
       "method": "markov_removal",
-      "mae_vs_truth": 0.1082,
-      "credit_to_zero_effect_channel": 0.1166
+      "mae_vs_truth": 0.0944,
+      "credit_to_zero_effect_channel": 0.3033
     }
   ]
 }

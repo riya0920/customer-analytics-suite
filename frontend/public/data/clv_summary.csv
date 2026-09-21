@@ -1,12 +1,12 @@
 metric,value
-BG/NBD r,0.6118
-BG/NBD alpha,15.7084
-BG/NBD a,1.178
-BG/NBD b,13.375
-Gamma-Gamma p,3.0065
-Gamma-Gamma q,6.6171
-Gamma-Gamma v,135.1787
-"Spearman (rank, holdout)",0.7366
-Pearson (individual),0.8227
-"Corr(frequency, order value)",0.0222
-Top-20% share of value,0.766
+BG/NBD r,0.689
+BG/NBD alpha,67.4035
+BG/NBD a,0.1468
+BG/NBD b,3.1536
+Gamma-Gamma p,2.3646
+Gamma-Gamma q,3.5543
+Gamma-Gamma v,426.7508
+"Spearman (rank, holdout)",0.6284
+Pearson (individual),0.925
+"Corr(frequency, order value)",0.1309
+Top-20% share of value,0.6885

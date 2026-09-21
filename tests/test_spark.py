@@ -31,7 +31,7 @@ pytestmark = pytest.mark.skipif(not PS.java_available(),
                                 reason="no Java 17+ runtime (set JAVA_HOME)")
 
 DATA = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
-CAL = 511
+CAL = 546
 KEYS = {"customer_rfm": ["customer_id"], "customer_holdout": ["customer_id"],
         "channel_daily": ["channel", "day"]}
 

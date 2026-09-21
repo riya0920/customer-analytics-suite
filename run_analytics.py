@@ -72,8 +72,8 @@ def main():
         extra.append((rows[:, 3].mean() if len(rows) else 0.0,
                       rows[:, 4].mean() if len(rows) else 0.0))
     extra = np.array(extra)
-    feats["category_breadth"] = extra[:, 0]
-    feats["discount_affinity"] = extra[:, 1]
+    feats["product_breadth"] = extra[:, 0]
+    feats["return_rate"] = extra[:, 1]
 
     # RFM quintiles: the transparent baseline everyone builds
     rfm = pd.DataFrame(index=feats.index)
@@ -120,7 +120,7 @@ def main():
     emit("Churn-rate spread across segments: %.1f%% to %.1f%% (%.1f points)."
          % (100 * fwd.churn_rate_T1.min(), 100 * fwd.churn_rate_T1.max(),
             100 * spread))
-    emit("Holdout spend spread: $%.0f to $%.0f."
+    emit("Holdout spend spread: £%.0f to £%.0f."
          % (fwd.holdout_spend.min(), fwd.holdout_spend.max()))
     emit("")
     emit("THIS IS THE VALIDATION THAT IS ALWAYS MISSING. Segments that do not")
@@ -183,28 +183,27 @@ def main():
     emit("Spearman rank correlation (predicted vs actual holdout spend): %.4f" % rank_corr)
     emit("Pearson correlation on individuals:                            %.4f" % indiv_corr)
     emit("")
-    emit("THE AGGREGATE-VS-INDIVIDUAL NOTE, AND THE CAVEAT ON THE CAVEAT.")
+    log_corr = float(np.corrcoef(np.log1p(pred_clv), np.log1p(actual_clv))[0, 1])
+    top1 = actual_clv >= np.quantile(actual_clv, 0.99)
+    top1_share = float(actual_clv[top1].sum() / actual_clv.sum())
+    emit("Pearson on log(1 + spend):                                     %.4f" % log_corr)
     emit("")
-    emit("The textbook warning about BG/NBD is that it RANKS populations well and")
-    emit("MISPREDICTS individuals -- use it to size a segment, never to decide what")
-    emit("one customer is worth. That warning is correct on real data.")
+    emit("READING THESE ON REAL DATA.")
     emit("")
-    emit("It is NOT what this run shows. The decile table tracks closely AND the")
-    emit("individual correlation is %.2f, which is high. Reporting that as evidence"
-         % indiv_corr)
-    emit("that the model predicts individuals well would be the single most")
-    emit("misleading thing in this project, because the reason is circular: the")
-    emit("generator in src/generate.py draws inter-purchase times from an")
-    emit("exponential with a Gamma-distributed rate and applies a Beta-distributed")
-    emit("dropout after each purchase. That IS the BG/NBD process. The model is")
-    emit("being scored on data that satisfies its assumptions exactly.")
+    emit("The raw Pearson of %.2f looks excellent and is not: the top 1%% of" % indiv_corr)
+    emit("customers (mostly wholesalers) are %.0f%% of all holdout spend, so the"
+         % (100 * top1_share))
+    emit("correlation is mostly measuring whether the model found the handful of")
+    emit("giant accounts. On the log scale, where every customer counts, it is")
+    emit("%.2f. The rank correlation (%.2f) is the number to quote." % (log_corr, rank_corr))
     emit("")
-    emit("So what this section actually validates is that the ESTIMATOR recovers")
-    emit("the parameters and the calibration harness works -- which is worth")
-    emit("knowing and is not the same claim. On real transactions, where customers")
-    emit("are seasonal, subscription-like, or promotion-driven, the individual")
-    emit("correlation collapses and the decile table is the only part that")
-    emit("survives. The honest use of this build is the harness, not the number.")
+    emit("The decile table shows the shape of the miss. The model OVER-predicts")
+    emit("the bottom decile (ratio %.2f) and UNDER-predicts the top one (%.2f):"
+         % (calib.ratio.iloc[0], calib.ratio.iloc[-1]))
+    emit("BG/NBD assumes a steady purchase rate, and on this retailer the heaviest")
+    emit("buyers grew into the holdout (it includes the Q4 gift season) while the")
+    emit("light ones faded faster than a memoryless model expects. Use it to rank")
+    emit("and size groups; do not use it to price one customer.")
 
     # ML challenger
     Xc = np.column_stack([s["x"], s["t_x"], s["T"], recency, s["monetary"],
@@ -384,12 +383,12 @@ def main():
     emit("=" * 78)
     emit("5. THE BUDGET DECISION -- WHAT LAST-TOUCH COSTS")
     emit("=" * 78)
-    # Budget sized so REACH IS NOT SATURATED. At $1m across 8,000 prospects every
+    # Budget sized so REACH IS NOT SATURATED. At GBP 1m across the prospects every
     # channel reaches everyone regardless of allocation, every method ties, and
-    # the section says nothing -- which is what the first version did. $1,500 is
-    # ~$0.19 per prospect and leaves the expensive channels genuinely rationed,
+    # the section says nothing -- which is what the first version did. £1,500 is
+    # ~£0.19 per prospect and leaves the expensive channels genuinely rationed,
     # so the allocation choice has consequences.
-    BUDGET = 1_500.0
+    BUDGET = 45_000.0
     base_conv = 0.10
     costs = truth["channel_costs"]
     effects = truth["channel_effects"]
@@ -410,7 +409,7 @@ def main():
     best = Bt.loc["TRUTH", "conversions"]
     Bt["conversions_lost_vs_truth"] = best - Bt.conversions
     Bt["pct_lost"] = 100 * Bt.conversions_lost_vs_truth / best
-    emit("Budget $%.0f (~$%.2f per prospect) allocated in proportion to each"
+    emit("Budget £%.0f (~£%.2f per prospect) allocated in proportion to each"
          % (BUDGET, BUDGET / n_cust))
     emit("method's credited share,")
     emit("then evaluated in the TRUE world (concave reach, saturation 0.6):")
@@ -418,7 +417,7 @@ def main():
     emit("")
     lt = Bt.loc["last_touch"]
     emit("THE HEADLINE FOR THE MEMO: allocating on last-touch instead of truth")
-    emit("costs %.0f conversions (%.1f%% of achievable) and puts $%.0f -- %.1f%% of"
+    emit("costs %.0f conversions (%.1f%% of achievable) and puts £%.0f -- %.1f%% of"
          % (lt.conversions_lost_vs_truth, lt.pct_lost, lt.spend_on_zero_effect,
             100 * lt.spend_on_zero_effect / BUDGET))
     emit("the budget -- into a channel that causes nothing.")
@@ -449,14 +448,11 @@ def main():
     emit("")
     emit("HANDOFF 2 -- why CLV belongs in this decision: the allocation above")
     emit("maximises CONVERSIONS, and conversions are not equally valuable. Top")
-    emit("versus bottom CLV decile on holdout spend is $%.0f against $%.0f. A"
+    emit("versus bottom CLV decile on holdout spend is £%.0f against £%.0f. A"
          % (calib.actual_clv.iloc[-1], calib.actual_clv.iloc[0]))
     emit("channel that acquires cheap, low-value customers can win a")
-    emit("conversion-based allocation and lose a value-based one. Weighting the")
-    emit("objective by predicted CLV per acquired customer is the join between")
-    emit("sections 2 and 5, and it is NOT built here -- the simulator does not")
-    emit("link journeys to customer ids, which is the single biggest structural")
-    emit("gap in this project.")
+    emit("conversion-based allocation and lose a value-based one. Section 6")
+    emit("weights the objective by predicted CLV.")
     summary["budget"] = Bt.round(3).to_dict("index")
 
     # ==================================================================
@@ -464,10 +460,8 @@ def main():
     emit("=" * 78)
     emit("6. THE CLV HANDOFF -- COMPUTED, NOT REASONED ABOUT")
     emit("=" * 78)
-    emit("The first pass called this the single biggest structural gap: journeys")
-    emit("were not linked to customer ids, so the budget objective could not be")
-    emit("weighted by the VALUE of the customers a channel acquires -- which is the")
-    emit("whole point of computing CLV in the same project. The link exists now.")
+    emit("Journeys are linked to real customer ids, so the budget objective can be")
+    emit("weighted by the VALUE of the customers each channel reaches.")
     emit("")
     jc = np.array(journey_customer)
     conv_arr = np.array(conversions)
@@ -551,16 +545,21 @@ def main():
     if conv_winner != val_winner:
         emit("THEY ARE DIFFERENT ALLOCATIONS, which is the entire argument for")
         emit("joining these two analyses. A budget that maximises conversions is")
-        emit("indifferent between acquiring a customer worth $50 and one worth")
-        emit("$800, and it will happily buy the cheap one because it is cheap.")
+        emit("indifferent between acquiring a customer worth £50 and one worth")
+        emit("£800, and it will happily buy the cheap one because it is cheap.")
     else:
-        emit("They coincide here, which is worth stating rather than hiding: on")
-        emit("this data the channels that convert most are also the ones bringing")
-        emit("better customers, so the value weighting does not change the")
-        emit("decision. That is a property of THIS simulator's channel-propensity")
-        emit("correlation, not a general result -- on real data the cheap")
-        emit("acquisition channels are usually the low-value ones, which is when")
-        emit("this join earns its keep.")
+        emit("They coincide here: the value weighting does not change which")
+        emit("allocation wins.")
+    top_ch = CV.clv_index.idxmax()
+    if top_ch == zc:
+        emit("")
+        emit("THE TRAP GETS WORSE, NOT BETTER. The channel with the highest customer")
+        emit("value is `%s` (index %.2f) -- the one with zero causal effect. It is"
+             % (zc, CV.clv_index.max()))
+        emit("shown to high-intent customers, and on this real customer base the")
+        emit("high-intent customers are the best buyers. Weighting a budget by the")
+        emit("value of the customers a channel TOUCHES rewards it twice for the same")
+        emit("confound.")
     emit("")
     emit("HONEST LIMIT ON THE WEIGHTING ITSELF: `clv_index` is correlational. A")
     emit("channel scoring above 1.0 may be ACQUIRING better customers, or it may")
@@ -590,7 +589,7 @@ def main():
         "",
         "1. Stop allocating on last-touch. On our data it sends %.1f%% of the"
         % (100 * zc_credit),
-        "   budget -- about $%.0f of $%.0f -- to retargeting, and our best"
+        "   budget -- about £%.0f of £%.0f -- to retargeting, and our best"
         % (lt.spend_on_zero_effect, BUDGET),
         "   evidence is that retargeting causes approximately none of the",
         "   conversions it is credited with.",
@@ -608,9 +607,11 @@ def main():
         "",
         "WHAT THIS IS BASED ON",
         "",
-        "We simulated marketing journeys with KNOWN channel effects and scored",
-        "every standard attribution method against that truth. Under those",
-        "conditions:",
+        "Real purchase history for %d customers (UCI Online Retail II), plus"
+        % n_cust,
+        "simulated marketing journeys with KNOWN channel effects, so every",
+        "standard attribution method can be scored against the truth. Under",
+        "those conditions:",
         "",
         "  - Every method credits a channel we know causes nothing. Last-touch",
         "    gives it %.0f%% of all credit; even Shapley, which is designed to"
@@ -623,12 +624,13 @@ def main():
         "    correlation from causation in data that contains no experiment.",
         "  - Allocating on last-touch instead of truth costs %.0f conversions"
         % lt.conversions_lost_vs_truth,
-        "    (%.1f%% of achievable) on a $%.0f budget."
+        "    (%.1f%% of achievable) on a £%.0f budget."
         % (lt.pct_lost, BUDGET),
         "",
         "WHAT WE ARE NOT CLAIMING",
         "",
-        "  - These are simulated channel effects, not measured ones. What",
+        "  - The customers and purchases are real; the channel effects are",
+        "    simulated, not measured. What",
         "    transfers is the RANKING of methods and the size of the error they",
         "    make, not the specific percentages.",
         "  - Our CLV model ranks customers well and mispredicts individuals. Use",
@@ -639,7 +641,7 @@ def main():
         "",
         "COST OF DOING NOTHING",
         "",
-        "  Roughly $%.0f a year of budget flowing to a channel whose effect we"
+        "  Roughly £%.0f a year of budget flowing to a channel whose effect we"
         % (lt.spend_on_zero_effect * 12),
         "  have never measured, and a reported ROAS that will keep telling us it",
         "  is working, because a channel that follows intent always looks good to",

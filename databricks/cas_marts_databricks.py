@@ -25,7 +25,7 @@ import time
 
 # Point this at wherever the two CSVs were uploaded.
 RAW_DIR = "/Volumes/workspace/default/cas_raw"   # or "dbfs:/FileStore/cas_raw"
-CAL = 511                                          # calibration_days (one home, as in dbt)
+CAL = 546                                          # calibration_days (one home, as in dbt)
 
 # COMMAND ----------
 
@@ -44,8 +44,8 @@ spark.sql("""
         cast(customer_id  as integer) as customer_id,
         cast(t_days       as double)  as t_days,
         cast(order_value  as double)  as order_value,
-        cast(n_categories as integer) as n_categories,
-        cast(used_discount as boolean) as used_discount
+        cast(n_products as integer) as n_products,
+        cast(had_return as boolean) as had_return
     from transactions
 """).createOrReplaceTempView("stg_transactions")
 
@@ -63,7 +63,7 @@ spark.sql("""
 
 # COMMAND ----------
 
-# --- marts (verbatim from pipeline_spark.mart_sql; discount_rate summands cast to
+# --- marts (verbatim from pipeline_spark.mart_sql; return_rate summands cast to
 # --- double so avg matches DuckDB, not Spark's DECIMAL rounding) ---
 customer_rfm = spark.sql(f"""
     with t as (select * from stg_transactions where t_days <= {CAL})
@@ -75,9 +75,9 @@ customer_rfm = spark.sql(f"""
         min(t_days)                 as first_purchase_day,
         avg(order_value)            as avg_order_value,
         sum(order_value)            as total_value,
-        avg(n_categories)           as avg_categories,
-        avg(case when used_discount then cast(1 as double)
-                 else cast(0 as double) end) as discount_rate
+        avg(n_products)           as avg_products,
+        avg(case when had_return then cast(1 as double)
+                 else cast(0 as double) end) as return_rate
     from t group by customer_id
 """)
 
@@ -108,13 +108,13 @@ print(f"channel_daily     : {n_channel} rows")
 # COMMAND ----------
 
 # Parity with the dbt/DuckDB warehouse and the local-Spark run: same marts.
-assert n_rfm == 7894, n_rfm
-assert n_holdout == 2847, n_holdout
+assert n_rfm == 4899, n_rfm
+assert n_holdout == 2592, n_holdout
 assert n_channel == 303, n_channel
 # leakage guard, as in the dbt singular test + tests/test_spark.py
 assert customer_holdout.filter("holdout_last_day <= %d" % CAL).count() == 0
 print("PARITY OK - Databricks marts match the DuckDB/local-Spark marts "
-      "(7894 / 2847 / 303, no leakage).")
+      "(4899 / 2592 / 303, no leakage).")
 
 # COMMAND ----------
 

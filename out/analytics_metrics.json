@@ -1,78 +1,78 @@
 {
   "segmentation": {
-    "ari_mean": 0.9270075982733486,
-    "ari_min": 0.5060905480095433,
-    "churn_spread": 0.643,
+    "ari_mean": 0.919984529717768,
+    "ari_min": 0.7573901574157811,
+    "churn_spread": 0.667,
     "forward": {
       "0": {
-        "n": 605,
-        "cal_frequency": 39.625,
-        "cal_monetary": 71.583,
-        "recency": 55.281,
-        "churn_rate_T1": 0.309,
-        "holdout_orders": 10.251,
-        "holdout_spend": 724.536
+        "n": 1133,
+        "cal_frequency": 0.981,
+        "cal_monetary": 133.462,
+        "recency": 353.734,
+        "churn_rate_T1": 0.755,
+        "holdout_orders": 0.387,
+        "holdout_spend": 114.907
       },
       "1": {
-        "n": 1364,
-        "cal_frequency": 2.983,
-        "cal_monetary": 45.716,
-        "recency": 410.265,
-        "churn_rate_T1": 0.915,
-        "holdout_orders": 0.178,
-        "holdout_spend": 11.419
+        "n": 603,
+        "cal_frequency": 1.834,
+        "cal_monetary": 266.171,
+        "recency": 185.098,
+        "churn_rate_T1": 0.486,
+        "holdout_orders": 1.177,
+        "holdout_spend": 532.82
       },
       "2": {
-        "n": 609,
-        "cal_frequency": 0.898,
-        "cal_monetary": 23.3,
-        "recency": 95.213,
-        "churn_rate_T1": 0.419,
-        "holdout_orders": 1.003,
-        "holdout_spend": 65.321
+        "n": 1514,
+        "cal_frequency": 0.992,
+        "cal_monetary": 120.183,
+        "recency": 124.426,
+        "churn_rate_T1": 0.522,
+        "holdout_orders": 1.143,
+        "holdout_spend": 379.932
       },
       "3": {
-        "n": 2280,
-        "cal_frequency": 3.17,
-        "cal_monetary": 41.844,
-        "recency": 426.745,
-        "churn_rate_T1": 0.952,
-        "holdout_orders": 0.097,
-        "holdout_spend": 5.602
+        "n": 34,
+        "cal_frequency": 62.235,
+        "cal_monetary": 2440.982,
+        "recency": 26.529,
+        "churn_rate_T1": 0.088,
+        "holdout_orders": 23.471,
+        "holdout_spend": 36055.431
       },
       "4": {
-        "n": 3142,
-        "cal_frequency": 9.7,
-        "cal_monetary": 79.438,
-        "recency": 108.726,
-        "churn_rate_T1": 0.411,
-        "holdout_orders": 2.57,
-        "holdout_spend": 191.443
+        "n": 1615,
+        "cal_frequency": 7.45,
+        "cal_monetary": 443.665,
+        "recency": 74.806,
+        "churn_rate_T1": 0.226,
+        "holdout_orders": 2.708,
+        "holdout_spend": 1343.426
       }
     }
   },
   "clv": {
     "params": {
-      "r": 0.6118487799705253,
-      "alpha": 15.708364362697685,
-      "a": 1.17795517762452,
-      "b": 13.375026405642995,
-      "p": 3.0064977214411077,
-      "q": 6.61712520336048,
-      "v": 135.1786616000952
+      "r": 0.6889899584275718,
+      "alpha": 67.40354986901912,
+      "a": 0.14683441239804726,
+      "b": 3.153616047011034,
+      "p": 2.364635029567341,
+      "q": 3.554262383794503,
+      "v": 426.75082940256743
     },
-    "spearman": 0.7366467467005491,
-    "individual_pearson": 0.8227354600807546,
-    "freq_monetary_corr": 0.022175911132951833,
-    "top20_value_share": 0.766014046315875,
+    "spearman": 0.6283506132333432,
+    "individual_pearson": 0.9249795344719266,
+    "freq_monetary_corr": 0.13087165250228494,
+    "top20_value_share": 0.6885050985488186,
     "challenger": {
       "BG/NBD + Gamma-Gamma": {
-        "spearman": 0.7464,
-        "mae": 91.9362
+        "spearman": 0.6327,
+        "mae": 587.1086
       },
       "GBM challenger": {
-        "spearman": 0.7287,
-        "mae": 97.4792
+        "spearman": 0.5396,
+        "mae": 808.2248
       }
     }
   },
@@ -93,147 +93,147 @@
       "_mae": 0.0
     },
     "last_touch": {
-      "display": 0.0103,
-      "social": 0.0167,
-      "email": 0.1173,
-      "paid_search": 0.2523,
-      "affiliate": 0.0428,
-      "influencer": 0.0089,
-      "podcast": 0.0054,
-      "ctv": 0.0044,
-      "push": 0.0805,
-      "sms": 0.0921,
-      "shopping_feed": 0.1698,
-      "retargeting": 0.1996,
-      "_mae": 0.062
+      "display": 0.0124,
+      "social": 0.0187,
+      "email": 0.1279,
+      "paid_search": 0.2518,
+      "affiliate": 0.0478,
+      "influencer": 0.008,
+      "podcast": 0.004,
+      "ctv": 0.005,
+      "push": 0.0701,
+      "sms": 0.0929,
+      "shopping_feed": 0.1587,
+      "retargeting": 0.2027,
+      "_mae": 0.059
     },
     "first_touch": {
-      "display": 0.3271,
-      "social": 0.1692,
-      "email": 0.0569,
-      "paid_search": 0.0294,
-      "affiliate": 0.0455,
-      "influencer": 0.1052,
-      "podcast": 0.097,
-      "ctv": 0.0978,
-      "push": 0.0215,
-      "sms": 0.0191,
-      "shopping_feed": 0.0151,
-      "retargeting": 0.0163,
-      "_mae": 0.0772
+      "display": 0.35,
+      "social": 0.157,
+      "email": 0.0524,
+      "paid_search": 0.0307,
+      "affiliate": 0.0488,
+      "influencer": 0.1069,
+      "podcast": 0.0939,
+      "ctv": 0.0925,
+      "push": 0.02,
+      "sms": 0.0137,
+      "shopping_feed": 0.017,
+      "retargeting": 0.017,
+      "_mae": 0.078
     },
     "linear": {
-      "display": 0.1138,
-      "social": 0.1055,
-      "email": 0.1369,
-      "paid_search": 0.135,
-      "affiliate": 0.0773,
-      "influencer": 0.0569,
-      "podcast": 0.0396,
-      "ctv": 0.037,
-      "push": 0.0651,
-      "sms": 0.0631,
-      "shopping_feed": 0.08,
-      "retargeting": 0.09,
-      "_mae": 0.0344
+      "display": 0.1252,
+      "social": 0.099,
+      "email": 0.1362,
+      "paid_search": 0.1371,
+      "affiliate": 0.0797,
+      "influencer": 0.0581,
+      "podcast": 0.0385,
+      "ctv": 0.0359,
+      "push": 0.0627,
+      "sms": 0.0601,
+      "shopping_feed": 0.079,
+      "retargeting": 0.0884,
+      "_mae": 0.0351
     },
     "time_decay": {
-      "display": 0.0629,
-      "social": 0.0751,
-      "email": 0.1504,
-      "paid_search": 0.1722,
-      "affiliate": 0.0777,
-      "influencer": 0.0389,
-      "podcast": 0.0244,
-      "ctv": 0.0217,
-      "push": 0.0764,
-      "sms": 0.0763,
-      "shopping_feed": 0.1049,
-      "retargeting": 0.119,
-      "_mae": 0.0345
+      "display": 0.0717,
+      "social": 0.0724,
+      "email": 0.1531,
+      "paid_search": 0.1727,
+      "affiliate": 0.0802,
+      "influencer": 0.0397,
+      "podcast": 0.0227,
+      "ctv": 0.0219,
+      "push": 0.0731,
+      "sms": 0.0743,
+      "shopping_feed": 0.102,
+      "retargeting": 0.1162,
+      "_mae": 0.035
     },
     "markov_removal": {
       "display": 0.0,
-      "social": 0.0101,
-      "email": 0.0,
-      "paid_search": 0.6472,
-      "affiliate": 0.0038,
+      "social": 0.0028,
+      "email": 0.132,
+      "paid_search": 0.4688,
+      "affiliate": 0.0118,
       "influencer": 0.0,
       "podcast": 0.0,
       "ctv": 0.0,
-      "push": 0.0056,
+      "push": 0.0,
       "sms": 0.0,
-      "shopping_feed": 0.2167,
-      "retargeting": 0.1166,
-      "_mae": 0.1082
+      "shopping_feed": 0.0813,
+      "retargeting": 0.3033,
+      "_mae": 0.0944
     },
     "shapley": {
-      "display": 0.0296,
-      "social": 0.0917,
-      "email": 0.12,
-      "paid_search": 0.1501,
-      "affiliate": 0.0854,
-      "influencer": 0.0695,
-      "podcast": 0.0569,
-      "ctv": 0.0471,
-      "push": 0.0706,
-      "sms": 0.0727,
-      "shopping_feed": 0.0999,
-      "retargeting": 0.1065,
-      "_mae": 0.0292
+      "display": 0.0668,
+      "social": 0.0479,
+      "email": 0.1313,
+      "paid_search": 0.1699,
+      "affiliate": 0.0865,
+      "influencer": 0.0498,
+      "podcast": 0.0459,
+      "ctv": 0.0281,
+      "push": 0.0743,
+      "sms": 0.054,
+      "shopping_feed": 0.1058,
+      "retargeting": 0.1397,
+      "_mae": 0.036
     }
   },
   "planted_channel": {
     "channel": "retargeting",
-    "apparent_lift": 0.06466001433941249,
+    "apparent_lift": 0.06928273114871364,
     "credited": {
-      "last_touch": 0.19955743311204988,
-      "first_touch": 0.016294508147254073,
-      "linear": 0.08996281607929152,
-      "time_decay": 0.11897116619567064,
-      "markov_removal": 0.11663540630746734,
-      "shapley": 0.10646072591229754
+      "last_touch": 0.20273881095524382,
+      "first_touch": 0.017034068136272545,
+      "linear": 0.0883738376223342,
+      "time_decay": 0.11622745815848286,
+      "markov_removal": 0.3033194616308933,
+      "shapley": 0.13969411283287334
     }
   },
   "budget": {
     "last_touch": {
-      "conversions": 2415.943,
-      "spend_on_zero_effect": 299.336,
-      "conversions_lost_vs_truth": 358.36,
-      "pct_lost": 12.917
+      "conversions": 1648.226,
+      "spend_on_zero_effect": 9123.246,
+      "conversions_lost_vs_truth": 171.006,
+      "pct_lost": 9.4
     },
     "first_touch": {
-      "conversions": 2534.903,
-      "spend_on_zero_effect": 24.442,
-      "conversions_lost_vs_truth": 239.401,
-      "pct_lost": 8.629
+      "conversions": 1643.639,
+      "spend_on_zero_effect": 766.533,
+      "conversions_lost_vs_truth": 175.593,
+      "pct_lost": 9.652
     },
     "linear": {
-      "conversions": 2668.892,
-      "spend_on_zero_effect": 134.944,
-      "conversions_lost_vs_truth": 105.411,
-      "pct_lost": 3.8
+      "conversions": 1733.897,
+      "spend_on_zero_effect": 3976.823,
+      "conversions_lost_vs_truth": 85.335,
+      "pct_lost": 4.691
     },
     "time_decay": {
-      "conversions": 2676.864,
-      "spend_on_zero_effect": 178.457,
-      "conversions_lost_vs_truth": 97.439,
-      "pct_lost": 3.512
+      "conversions": 1738.268,
+      "spend_on_zero_effect": 5230.236,
+      "conversions_lost_vs_truth": 80.964,
+      "pct_lost": 4.45
     },
     "markov_removal": {
-      "conversions": 1637.579,
-      "spend_on_zero_effect": 174.953,
-      "conversions_lost_vs_truth": 1136.724,
-      "pct_lost": 40.973
+      "conversions": 1239.846,
+      "spend_on_zero_effect": 13649.376,
+      "conversions_lost_vs_truth": 579.386,
+      "pct_lost": 31.848
     },
     "shapley": {
-      "conversions": 2722.592,
-      "spend_on_zero_effect": 159.691,
-      "conversions_lost_vs_truth": 51.711,
-      "pct_lost": 1.864
+      "conversions": 1766.816,
+      "spend_on_zero_effect": 6286.235,
+      "conversions_lost_vs_truth": 52.416,
+      "pct_lost": 2.881
     },
     "TRUTH": {
-      "conversions": 2774.303,
+      "conversions": 1819.232,
       "spend_on_zero_effect": 0.0,
       "conversions_lost_vs_truth": 0.0,
       "pct_lost": 0.0
@@ -242,138 +242,138 @@
   "clv_handoff": {
     "channel_value": {
       "display": {
-        "converters_touched": 2231,
-        "mean_clv": 149.53,
-        "median_clv": 30.948,
-        "total_clv": 333601.512,
-        "clv_index": 1.017
+        "converters_touched": 1399,
+        "mean_clv": 1328.414,
+        "median_clv": 384.446,
+        "total_clv": 1858451.336,
+        "clv_index": 1.054
       },
       "social": {
-        "converters_touched": 2087,
-        "mean_clv": 145.908,
-        "median_clv": 29.731,
-        "total_clv": 304509.515,
-        "clv_index": 0.992
+        "converters_touched": 1175,
+        "mean_clv": 1265.971,
+        "median_clv": 376.359,
+        "total_clv": 1487516.492,
+        "clv_index": 1.005
       },
       "email": {
-        "converters_touched": 2533,
-        "mean_clv": 149.932,
-        "median_clv": 26.532,
-        "total_clv": 379777.641,
-        "clv_index": 1.02
+        "converters_touched": 1512,
+        "mean_clv": 1235.797,
+        "median_clv": 370.366,
+        "total_clv": 1868525.479,
+        "clv_index": 0.981
       },
       "paid_search": {
-        "converters_touched": 2520,
-        "mean_clv": 150.151,
-        "median_clv": 26.638,
-        "total_clv": 378379.387,
-        "clv_index": 1.021
+        "converters_touched": 1491,
+        "mean_clv": 940.708,
+        "median_clv": 357.602,
+        "total_clv": 1402596.366,
+        "clv_index": 0.746
       },
       "affiliate": {
-        "converters_touched": 1636,
-        "mean_clv": 147.855,
-        "median_clv": 26.054,
-        "total_clv": 241891.186,
-        "clv_index": 1.006
+        "converters_touched": 987,
+        "mean_clv": 1343.41,
+        "median_clv": 369.072,
+        "total_clv": 1325945.813,
+        "clv_index": 1.066
       },
       "influencer": {
-        "converters_touched": 1241,
-        "mean_clv": 137.958,
-        "median_clv": 24.493,
-        "total_clv": 171205.84,
-        "clv_index": 0.938
+        "converters_touched": 777,
+        "mean_clv": 1197.272,
+        "median_clv": 373.49,
+        "total_clv": 930280.702,
+        "clv_index": 0.95
       },
       "podcast": {
-        "converters_touched": 913,
-        "mean_clv": 139.501,
-        "median_clv": 24.5,
-        "total_clv": 127364.699,
-        "clv_index": 0.949
+        "converters_touched": 539,
+        "mean_clv": 1418.193,
+        "median_clv": 362.185,
+        "total_clv": 764405.933,
+        "clv_index": 1.125
       },
       "ctv": {
-        "converters_touched": 860,
-        "mean_clv": 143.527,
-        "median_clv": 27.033,
-        "total_clv": 123432.965,
-        "clv_index": 0.976
+        "converters_touched": 503,
+        "mean_clv": 1052.824,
+        "median_clv": 385.789,
+        "total_clv": 529570.399,
+        "clv_index": 0.835
       },
       "push": {
-        "converters_touched": 1388,
-        "mean_clv": 139.468,
-        "median_clv": 23.267,
-        "total_clv": 193581.404,
-        "clv_index": 0.949
+        "converters_touched": 816,
+        "mean_clv": 1250.234,
+        "median_clv": 369.266,
+        "total_clv": 1020191.125,
+        "clv_index": 0.992
       },
       "sms": {
-        "converters_touched": 1379,
-        "mean_clv": 158.992,
-        "median_clv": 28.328,
-        "total_clv": 219249.355,
-        "clv_index": 1.081
+        "converters_touched": 819,
+        "mean_clv": 1047.279,
+        "median_clv": 377.842,
+        "total_clv": 857721.234,
+        "clv_index": 0.831
       },
       "shopping_feed": {
-        "converters_touched": 1700,
-        "mean_clv": 149.95,
-        "median_clv": 34.6,
-        "total_clv": 254914.767,
-        "clv_index": 1.02
+        "converters_touched": 978,
+        "mean_clv": 1005.802,
+        "median_clv": 354.631,
+        "total_clv": 983674.148,
+        "clv_index": 0.798
       },
       "retargeting": {
-        "converters_touched": 1856,
-        "mean_clv": 151.484,
-        "median_clv": 27.797,
-        "total_clv": 281154.595,
-        "clv_index": 1.03
+        "converters_touched": 1080,
+        "mean_clv": 2037.417,
+        "median_clv": 665.034,
+        "total_clv": 2200410.714,
+        "clv_index": 1.617
       }
     },
     "allocations": {
       "last_touch": {
-        "conversions": 2415.943,
-        "customer_value": 358780.017,
-        "conv_lost_pct": 12.917,
-        "value_lost_pct": 12.553
+        "conversions": 1648.226,
+        "customer_value": 1967522.836,
+        "conv_lost_pct": 9.4,
+        "value_lost_pct": 10.315
       },
       "first_touch": {
-        "conversions": 2534.903,
-        "customer_value": 373481.514,
-        "conv_lost_pct": 8.629,
-        "value_lost_pct": 8.969
+        "conversions": 1643.639,
+        "customer_value": 2029718.568,
+        "conv_lost_pct": 9.652,
+        "value_lost_pct": 7.48
       },
       "linear": {
-        "conversions": 2668.892,
-        "customer_value": 394822.572,
-        "conv_lost_pct": 3.8,
-        "value_lost_pct": 3.768
+        "conversions": 1733.897,
+        "customer_value": 2105076.72,
+        "conv_lost_pct": 4.691,
+        "value_lost_pct": 4.045
       },
       "time_decay": {
-        "conversions": 2676.864,
-        "customer_value": 396355.547,
-        "conv_lost_pct": 3.512,
-        "value_lost_pct": 3.394
+        "conversions": 1738.268,
+        "customer_value": 2101427.416,
+        "conv_lost_pct": 4.45,
+        "value_lost_pct": 4.211
       },
       "markov_removal": {
-        "conversions": 1637.579,
-        "customer_value": 241270.569,
-        "conv_lost_pct": 40.973,
-        "value_lost_pct": 41.194
+        "conversions": 1239.846,
+        "customer_value": 1452729.212,
+        "conv_lost_pct": 31.848,
+        "value_lost_pct": 33.781
       },
       "shapley": {
-        "conversions": 2722.592,
-        "customer_value": 402613.608,
-        "conv_lost_pct": 1.864,
-        "value_lost_pct": 1.869
+        "conversions": 1766.816,
+        "customer_value": 2139170.267,
+        "conv_lost_pct": 2.881,
+        "value_lost_pct": 2.491
       },
       "TRUTH": {
-        "conversions": 2774.303,
-        "customer_value": 410281.414,
+        "conversions": 1819.232,
+        "customer_value": 2193819.904,
         "conv_lost_pct": 0.0,
         "value_lost_pct": 0.0
       },
       "CLV-WEIGHTED TRUTH": {
-        "conversions": 2772.166,
-        "customer_value": 410021.861,
-        "conv_lost_pct": 0.077,
-        "value_lost_pct": 0.063
+        "conversions": 1806.554,
+        "customer_value": 2187464.12,
+        "conv_lost_pct": 0.697,
+        "value_lost_pct": 0.29
       }
     },
     "conv_winner": "TRUTH",

@@ -29,16 +29,16 @@ class AnalyticsApiTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("ok"))
                 .andExpect(jsonPath("$.row_counts.segments").value(5))
-                .andExpect(jsonPath("$.row_counts.clv_per_customer").value(8000));
+                .andExpect(jsonPath("$.row_counts.clv_per_customer").value(4899));
     }
 
     @Test
     void kpisShapeAndValues() throws Exception {
         mvc.perform(get("/api/kpis"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.total_customers").value(8000))
+                .andExpect(jsonPath("$.total_customers").value(4899))
                 .andExpect(jsonPath("$.n_channels").value(12))
-                .andExpect(jsonPath("$.top20pct_value_share").value(0.766));
+                .andExpect(jsonPath("$.top20pct_value_share").value(0.6885));
     }
 
     @Test
@@ -71,7 +71,7 @@ class AnalyticsApiTests {
     void clvCustomersPagination() throws Exception {
         mvc.perform(get("/api/clv/customers").param("limit", "10").param("offset", "0"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.total").value(8000))
+                .andExpect(jsonPath("$.total").value(4899))
                 .andExpect(jsonPath("$.limit").value(10))
                 .andExpect(jsonPath("$.items", hasSize(10)));
     }

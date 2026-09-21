@@ -4,8 +4,8 @@ RE:      Marketing budget allocation, and one channel we should test
 
 RECOMMENDATION
 
-1. Stop allocating on last-touch. On our data it sends 20.0% of the
-   budget -- about $299 of $1500 -- to retargeting, and our best
+1. Stop allocating on last-touch. On our data it sends 20.3% of the
+   budget -- about £9123 of £45000 -- to retargeting, and our best
    evidence is that retargeting causes approximately none of the
    conversions it is credited with.
 
@@ -21,23 +21,25 @@ RECOMMENDATION
 
 WHAT THIS IS BASED ON
 
-We simulated marketing journeys with KNOWN channel effects and scored
-every standard attribution method against that truth. Under those
-conditions:
+Real purchase history for 4899 customers (UCI Online Retail II), plus
+simulated marketing journeys with KNOWN channel effects, so every
+standard attribution method can be scored against the truth. Under
+those conditions:
 
   - Every method credits a channel we know causes nothing. Last-touch
     gives it 20% of all credit; even Shapley, which is designed to
-    give a useless channel exactly zero, gives it 11%.
+    give a useless channel exactly zero, gives it 14%.
   - The reason is not the estimators. It is that retargeting is TARGETED
     at customers who were already going to buy, so it correlates with
     conversion without causing it. No amount of modelling separates
     correlation from causation in data that contains no experiment.
-  - Allocating on last-touch instead of truth costs 358 conversions
-    (12.9% of achievable) on a $1500 budget.
+  - Allocating on last-touch instead of truth costs 171 conversions
+    (9.4% of achievable) on a £45000 budget.
 
 WHAT WE ARE NOT CLAIMING
 
-  - These are simulated channel effects, not measured ones. What
+  - The customers and purchases are real; the channel effects are
+    simulated, not measured. What
     transfers is the RANKING of methods and the size of the error they
     make, not the specific percentages.
   - Our CLV model ranks customers well and mispredicts individuals. Use
@@ -48,7 +50,7 @@ WHAT WE ARE NOT CLAIMING
 
 COST OF DOING NOTHING
 
-  Roughly $3592 a year of budget flowing to a channel whose effect we
+  Roughly £109479 a year of budget flowing to a channel whose effect we
   have never measured, and a reported ROAS that will keep telling us it
   is working, because a channel that follows intent always looks good to
   a correlational metric.

@@ -8,6 +8,6 @@ select
     cast(customer_id as integer)       as customer_id,
     cast(t_days      as double)        as t_days,
     cast(order_value as double)        as order_value,
-    cast(n_categories as integer)      as n_categories,
-    cast(used_discount as boolean)     as used_discount
+    cast(n_products as integer)      as n_products,
+    cast(had_return as boolean)     as had_return
 from {{ source('raw', 'transactions') }}

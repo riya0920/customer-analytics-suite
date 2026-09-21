@@ -1,16 +1,28 @@
-"""Transactions plus multi-channel marketing journeys with KNOWN channel effects.
+"""Build the project's inputs: REAL transactions plus a SIMULATED marketing layer.
 
-WHY THIS IS SIMULATED, AND WHY THAT IS THE RIGHT CHOICE HERE
-------------------------------------------------------------
+TRANSACTIONS ARE REAL
+---------------------
+UCI Online Retail II, cleaned by src/clean_retail.py: one row per customer per
+purchase day. Segmentation and CLV run on these and nothing else.
+
+    calibration : 2009-12-01 .. 2011-05-31  (18 months, models are fitted here)
+    holdout     : 2011-06-01 .. 2011-12-09  (~6 months, models are scored here)
+
+The cohort is every customer whose first purchase falls in the calibration
+window. Customers first seen in the holdout cannot be predicted by any model
+fitted before they existed, so they are counted and excluded.
+
+THE MARKETING LAYER IS SIMULATED, AND THAT IS THE RIGHT CHOICE
+--------------------------------------------------------------
 Real multi-touch attribution data with ground truth does not exist publicly, and
 it cannot: the ground truth is a causal quantity, so establishing it requires an
 experiment nobody publishes. Without truth, attribution methods can only be
-ASSERTED, never validated -- which is precisely why the field is full of
-confident numbers that misallocate budget.
+ASSERTED, never validated.
 
-So the touch data is generated with channel effects I choose, and every
-attribution method is then SCORED against them. That converts the most BS-prone
-area of marketing analytics into a controlled experiment.
+So ad journeys are generated FOR THE REAL CUSTOMERS with channel effects I
+choose, and every attribution method is scored against them. Each customer's
+baseline intent comes from their real calibration-period purchase frequency, so
+retargeting chases customers who really do buy more.
 
 Three things are planted deliberately:
 
@@ -31,12 +43,18 @@ import json
 import os
 
 import numpy as np
+import pandas as pd
+from scipy.stats import beta as beta_dist
+
+try:
+    from src.clean_retail import clean, load_raw
+except ImportError:          # run as a script: python src/build_data.py
+    from clean_retail import clean, load_raw
 
 RNG = np.random.default_rng(4711)
 
-N_CUSTOMERS = 8000
-OBSERVATION_DAYS = 730
-CALIBRATION_DAYS = 511          # ~70% of the window; the rest is holdout
+CALIBRATION_DAYS = 546          # last calibration day: 2011-05-31
+OBSERVATION_DAYS = 738          # last day in the data: 2011-12-09
 
 # channel -> (true incremental effect on conversion prob, position bias,
 #             cost per impression)
@@ -96,50 +114,57 @@ IN_MARKET_CLOSER_EXPOSURE = 2.4
 
 CHANNEL_LIST = list(CHANNELS)
 
+# The `cost` column above is RELATIVE cost per touch. It is scaled to pounds so
+# that total simulated marketing spend is about 10% of the revenue the
+# converting journeys bring in (one average order per conversion) -- a normal
+# retail level. Paid search lands near GBP 10 per touch, email near 6p. The
+# scale multiplies every channel equally, so it changes no allocation.
+COST_SCALE = 30.0
 
-def _customers():
-    """Latent heterogeneity: purchase rate, dropout, spend level, and an
-    intrinsic propensity that retargeting will later chase."""
-    lam = RNG.gamma(0.9, 1 / 22.0, N_CUSTOMERS)        # purchases per day
-    p_drop = RNG.beta(1.2, 12.0, N_CUSTOMERS)          # per-purchase dropout
-    spend_mu = RNG.gamma(6.0, 12.0, N_CUSTOMERS)       # mean order value
-    propensity = RNG.beta(2.0, 5.0, N_CUSTOMERS)       # baseline intent
-    disc_affinity = RNG.beta(2.0, 4.0, N_CUSTOMERS)
-    cat_breadth = RNG.integers(1, 9, N_CUSTOMERS)
-    in_market = RNG.random(N_CUSTOMERS) < IN_MARKET_RATE
-    return (lam, p_drop, spend_mu, propensity, disc_affinity, cat_breadth,
-            in_market)
+
+def _real_transactions():
+    """Real purchase occasions for the calibration cohort, as the 5-column array
+    every downstream step reads: customer, day, order value, distinct products,
+    had_return."""
+    occ, rep = clean(load_raw())
+    first = occ.groupby("customer")["day"].min()
+    cohort = first[first <= CALIBRATION_DAYS].index
+    rep["customers_first_seen_in_holdout_excluded"] = int(len(first) - len(cohort))
+    occ = occ[occ["customer"].isin(cohort)]
+    ids = np.sort(cohort.to_numpy())
+    idx = {c: i for i, c in enumerate(ids)}
+    txn = np.column_stack([
+        occ["customer"].map(idx).to_numpy(float),
+        occ["day"].to_numpy(float),
+        occ["order_value"].round(2).to_numpy(float),
+        occ["n_products"].to_numpy(float),
+        occ["had_return"].to_numpy(float)])
+    txn = txn[np.lexsort((txn[:, 1], txn[:, 0]))]
+    customers = (occ.groupby("customer")["country"].first()
+                 .reindex(ids).reset_index()
+                 .rename(columns={"customer": "source_customer_id"}))
+    customers.insert(0, "customer", np.arange(len(ids)))
+    rep["cohort_customers"] = int(len(ids))
+    rep["cohort_occasions"] = int(len(txn))
+    return txn, customers, rep
+
+
+def _propensity(txn, n):
+    """Baseline intent for the simulated journeys, anchored to real behaviour:
+    a customer's calibration-period purchase count, rank-mapped onto Beta(2, 5)
+    (the distribution the simulator was designed around)."""
+    cal = txn[txn[:, 1] <= CALIBRATION_DAYS]
+    freq = np.bincount(cal[:, 0].astype(int), minlength=n)
+    rank = (pd.Series(freq).rank(method="average").to_numpy() - 0.5) / n
+    return beta_dist.ppf(rank, 2.0, 5.0)
 
 
 def build(out_dir: str) -> dict:
     os.makedirs(out_dir, exist_ok=True)
-    (lam, p_drop, spend_mu, propensity, disc_aff, breadth,
-     in_market) = _customers()
-
-    # ---------------- transactions: BG/NBD-shaped by construction ----------
-    txns = []
-    for c in range(N_CUSTOMERS):
-        t = 0.0
-        alive = True
-        # everyone has an initial purchase at t=0 (acquisition)
-        n_orders = 0
-        while alive and t < OBSERVATION_DAYS:
-            gap = RNG.exponential(1.0 / max(lam[c], 1e-6))
-            t += gap
-            if t >= OBSERVATION_DAYS:
-                break
-            value = float(RNG.gamma(4.0, spend_mu[c] / 4.0))
-            txns.append((c, round(t, 3), round(value, 2),
-                         int(RNG.integers(1, breadth[c] + 1)),
-                         int(RNG.random() < disc_aff[c])))
-            n_orders += 1
-            if RNG.random() < p_drop[c]:
-                alive = False
-        if n_orders == 0:
-            txns.append((c, 0.0, float(round(RNG.gamma(4.0, spend_mu[c] / 4.0), 2)),
-                         1, int(RNG.random() < disc_aff[c])))
-
-    txn = np.array(txns, dtype=np.float64)
+    txn, customers, cleaning = _real_transactions()
+    N_CUSTOMERS = len(customers)
+    propensity = _propensity(txn, N_CUSTOMERS)
+    in_market = RNG.random(N_CUSTOMERS) < IN_MARKET_RATE
 
     # ---------------- marketing journeys ---------------------------------
     journeys, conversions, journey_customer, touch_times = [], [], [], []
@@ -206,7 +231,8 @@ def build(out_dir: str) -> dict:
 
     truth = {
         "channel_effects": {k: v["effect"] for k, v in CHANNELS.items()},
-        "channel_costs": {k: v["cost"] for k, v in CHANNELS.items()},
+        "channel_costs": {k: round(v["cost"] * COST_SCALE, 4)
+                          for k, v in CHANNELS.items()},
         "zero_effect_channel": "retargeting",
         "channel_value_tilt": {k: v["value_tilt"] for k, v in CHANNELS.items()},
         # Recorded so the report can state exactly how much of the confounding is
@@ -220,6 +246,9 @@ def build(out_dir: str) -> dict:
     }
 
     np.save(os.path.join(out_dir, "transactions.npy"), txn)
+    customers.to_csv(os.path.join(out_dir, "customers.csv"), index=False)
+    with open(os.path.join(out_dir, "cleaning_report.json"), "w") as f:
+        json.dump(cleaning, f, indent=2)
     with open(os.path.join(out_dir, "journeys.json"), "w") as f:
         json.dump(dict(journeys=journeys, conversions=conversions,
                        customer_id=journey_customer, touch_days=touch_times,
@@ -234,6 +263,7 @@ def build(out_dir: str) -> dict:
         json.dump(truth, f, indent=2)
 
     stats = dict(
+        source="UCI Online Retail II (real transactions) + simulated touch layer",
         n_customers=N_CUSTOMERS, n_transactions=int(len(txn)),
         mean_orders_per_customer=round(len(txn) / N_CUSTOMERS, 2),
         conversion_rate=round(float(np.mean(conversions)), 4),

@@ -88,8 +88,8 @@ def recompute_customer_level():
         extra.append((rows[:, 3].mean() if len(rows) else 0.0,
                       rows[:, 4].mean() if len(rows) else 0.0))
     extra = np.array(extra)
-    feats["category_breadth"] = extra[:, 0]
-    feats["discount_affinity"] = extra[:, 1]
+    feats["product_breadth"] = extra[:, 0]
+    feats["return_rate"] = extra[:, 1]
 
     X = StandardScaler().fit_transform(feats.to_numpy())
     labels = KMeans(n_clusters=K_SEGMENTS, n_init=10,

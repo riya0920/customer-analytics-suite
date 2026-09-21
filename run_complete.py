@@ -1,7 +1,7 @@
 """The completion pass: a real pipeline, k chosen rather than asserted, Shapley at
 scale, higher-order Markov, unit economics, and an unobserved confounder.
 
-Run after `python src/generate.py`. Writes out/complete_report.txt.
+Run after `python src/build_data.py`. Writes out/complete_report.txt.
 """
 from __future__ import annotations
 
@@ -115,12 +115,12 @@ def main():
     emit("=" * 78)
     rfm = PL.query("""
         select r.customer_id, r.frequency, r.days_since_last, r.avg_order_value,
-               r.total_value, r.avg_categories, r.discount_rate,
+               r.total_value, r.avg_products, r.return_rate,
                coalesce(h.holdout_value, 0.0) as holdout_value
         from customer_rfm r left join customer_holdout h using (customer_id)
     """)
     feats = ["frequency", "days_since_last", "avg_order_value",
-             "avg_categories", "discount_rate"]
+             "avg_products", "return_rate"]
     Xr = rfm[feats].to_numpy(float)
     Xr = np.log1p(np.clip(Xr, 0, None))
     Xr = (Xr - Xr.mean(0)) / (Xr.std(0) + 1e-9)
@@ -200,8 +200,11 @@ def main():
              % (100 * (1 - best["noise_share"])))
         emit("  by the end of the week.")
     else:
-        emit("  At the best setting HDBSCAN assigns most customers, which makes it")
-        emit("  a genuine alternative here rather than a diagnostic.")
+        emit("  At its best setting HDBSCAN finds %d clusters, and the largest holds"
+             % best["n_clusters"])
+        emit("  %.0f%% of all customers; the rest is noise. That is one dense core, not"
+             % (100 * best["largest"] / len(Xr)))
+        emit("  a set of natural groups.")
     emit("")
     emit("  THE COMPARISON IS NOT 'WHICH IS BETTER'. k-means forces a partition")
     emit("  and is therefore always actionable and sometimes fictional -- it will")
@@ -209,8 +212,9 @@ def main():
     emit("  refuses to invent structure and is therefore sometimes honest and")
     emit("  often unusable. Which failure mode you prefer is a business decision,")
     emit("  and the useful output of running both is knowing WHICH ONE you are")
-    emit("  buying: here, k-means is inventing the segments, and that is worth")
-    emit("  knowing before anyone builds a campaign on them.")
+    emit("  buying: here the customers form one continuum, so the k-means")
+    emit("  segments are useful cuts through it, not groups that exist on their")
+    emit("  own. That is worth knowing before anyone builds a campaign on them.")
     emit("")
     summary["k_selection"] = dict(table=tab.round(4).to_dict("records"),
                                   picks=picks, hdbscan=hrows)
@@ -499,10 +503,12 @@ def main():
     emit("=" * 78)
     txn = np.load(os.path.join(DATA, "transactions.npy"))
     cal = truth["calibration_days"]
-    value_by_customer = defaultdict(float)
-    for r in txn:
-        if r[1] > cal:
-            value_by_customer[int(r[0])] += float(r[2])
+    # A conversion is worth ONE ORDER: the customer's average order value.
+    # Crediting a journey with the customer's whole spend in a period counts the
+    # same revenue once per journey and inflates ROAS by orders of magnitude.
+    tx_df = pd.DataFrame(txn[:, :3], columns=["c", "t", "v"])
+    value_by_customer = tx_df.groupby("c")["v"].mean().rename(int).to_dict()
+    value_by_customer = {int(k): float(v) for k, v in value_by_customer.items()}
     econ = SC.channel_economics(journeys, convs, channels,
                                 truth["channel_costs"], value_by_customer, cust)
     E = pd.DataFrame(econ).sort_values("spend", ascending=False)
@@ -518,7 +524,7 @@ def main():
     emit("")
     blended = float(E.spend.sum() / max(total_conv, 1))
     naive_sum = float(np.nansum([1.0 / r for r in E.cac if r and np.isfinite(r)]))
-    emit("  Blended CAC (total spend / total conversions): $%.2f" % blended)
+    emit("  Blended CAC (total spend / total conversions): £%.2f" % blended)
     emit("  Sum of channel conversions_touched: %d against %d actual conversions."
          % (int(E.conversions_touched.sum()), total_conv))
     emit("")
@@ -531,7 +537,7 @@ def main():
     zc = truth["zero_effect_channel"]
     zrow = E[E.channel == zc].iloc[0]
     zinc = inc[inc.channel == zc].iloc[0]
-    emit("  Look at %s: observational CAC $%.2f, ROAS %.2f -- a channel that"
+    emit("  Look at %s: observational CAC £%.2f, ROAS %.2f -- a channel that"
          % (zc, zrow.cac, zrow.roas))
     emit("  causes NOTHING has a defensible-looking CAC and would survive any")
     emit("  efficiency review. Its incremental CAC is infinite, because its")

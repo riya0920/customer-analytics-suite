@@ -73,8 +73,8 @@ STAGING_SQL = {
             cast(customer_id  as integer) as customer_id,
             cast(t_days       as double)  as t_days,
             cast(order_value  as double)  as order_value,
-            cast(n_categories as integer) as n_categories,
-            cast(used_discount as boolean) as used_discount
+            cast(n_products as integer) as n_products,
+            cast(had_return as boolean) as had_return
         from transactions
     """,
     "stg_touches": """
@@ -108,12 +108,12 @@ def mart_sql(calibration_days: int) -> dict:
                 min(t_days)                 as first_purchase_day,
                 avg(order_value)            as avg_order_value,
                 sum(order_value)            as total_value,
-                avg(n_categories)           as avg_categories,
+                avg(n_products)           as avg_products,
                 -- cast the summands to double: Spark parses `1.0` as DECIMAL and
                 -- avg(decimal) rounds to 5 places, silently disagreeing with
                 -- DuckDB's double. Forcing double keeps the two engines identical.
-                avg(case when used_discount then cast(1 as double)
-                         else cast(0 as double) end) as discount_rate
+                avg(case when had_return then cast(1 as double)
+                         else cast(0 as double) end) as return_rate
             from t
             group by customer_id
         """,
@@ -147,7 +147,7 @@ MART_NAMES = ["customer_rfm", "customer_holdout", "channel_daily"]
 # --------------------------------------------------------------------------
 # DuckDB engine (in-process) -- the same SQL, for an apples-to-apples baseline
 # --------------------------------------------------------------------------
-def build_marts_duckdb(tx_df, touch_df, calibration_days: int = 511) -> dict:
+def build_marts_duckdb(tx_df, touch_df, calibration_days: int = 546) -> dict:
     """Run the staging + mart SQL on DuckDB in-process. Returns pandas frames."""
     import duckdb
     con = duckdb.connect()
@@ -194,7 +194,7 @@ def spark_session(app: str = "cas-spark"):
     return spark
 
 
-def build_marts_spark(spark, tx_df, touch_df, calibration_days: int = 511) -> dict:
+def build_marts_spark(spark, tx_df, touch_df, calibration_days: int = 546) -> dict:
     """Run the identical staging + mart SQL on Spark. Returns pandas frames
     (collected with .toPandas(), which is what forces Spark's lazy plan to run)."""
     spark.createDataFrame(tx_df).createOrReplaceTempView("transactions")

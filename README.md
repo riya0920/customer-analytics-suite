@@ -1,68 +1,406 @@
-# DATA-1 Customer Analytics: Segmentation → CLV → Attribution
+# Customer Analytics: Segmentation, Lifetime Value, and Marketing Attribution
 
-Three questions on one dataset with the handoffs
-computed, attribution validated against known ground truth, **a real dbt pipeline
-with a leakage test that fails the build**, k chosen rather than asserted,
-**Shapley at twelve channels with its sampled approximation checked and then
-repaired**, higher-order Markov, CAC and ROAS against incremental truth, and an
-**unobserved confounder that no method here can beat**.
+**Live dashboards:** [Tableau Public](https://public.tableau.com/app/profile/riya.ashokbhai.soni/viz/CustomerAnalytics-SegmentationCLVAttribution/Segmentation) · [Looker Studio](https://lookerstudio.google.com/reporting/97a07987-f61e-4930-9219-fa5d02c239cc) · [Executive memo](out/EXECUTIVE_MEMO.md)
 
-Three of the sections below report that something does not work. Two of those are
-the most useful results in the project.
+## What this project is trying to do
 
-```bash
-python src/generate.py       # ~5s    8,000 customers, 15,238 journeys, 12 channels
-python run_analytics.py      # ~1min  the original report
-python run_complete.py       # ~7min  the completion pass (dbt build + k sweep)
-python -m pytest tests -q    # 69 tests
-```
+An online store has 8,000 customers and spends money on 12 marketing channels
+(paid search, email, social, retargeting, and so on). The marketing team wants
+answers to three questions:
 
-8,000 customers, 89,540 transactions, **15,238 journeys (1.9 per customer)**,
-**12 channels**, 730 days.
+1. **Who are our customers?** Group them into segments, and check that the
+   segments actually predict what customers do next.
+2. **What is each customer worth?** Predict each customer's future spend
+   (customer lifetime value, CLV), and check the prediction against what really
+   happened.
+3. **Which marketing channels actually work?** When a customer buys after seeing
+   several ads, decide how much credit each channel gets ("attribution"), and
+   check if that credit is right.
 
-## Published dashboards (Tableau Public + Looker Studio)
+The answers feed each other: segments show where the value is, CLV sizes it, and
+attribution decides where the budget goes.
 
-The same three result areas are published as an interactive dashboard on **two**
-BI platforms - pick whichever a given job posting names.
+## Why the data is simulated
 
-**Tableau Public** (three tabs: Segmentation, CLV, Attribution; no sign-in to view):
-https://public.tableau.com/app/profile/riya.ashokbhai.soni/viz/CustomerAnalytics-SegmentationCLVAttribution/Segmentation
+To check whether an attribution method is right, you need to know the true
+effect of every channel. Real data never tells you that. So the project
+generates its own data (`src/generate.py`) with **known** channel effects, then
+scores every method against that known truth.
 
-Built in Tableau's browser web-authoring on the same exported CSVs: Segmentation =
-customers by segment, CLV = share of predicted value by segment (Segment 0 = 37%,
-Segment 4 = 51%), Attribution = the 7-method × 12-channel credit matrix with the
-planted-truth row, so the methods' disagreement is visible cell by cell.
+Two traps are built in on purpose:
 
-**Looker Studio** (unlisted - no sign-in required):
-https://lookerstudio.google.com/reporting/97a07987-f61e-4930-9219-fa5d02c239cc
+- **`retargeting` has zero real effect.** It is shown to people who were already
+  about to buy, so it *looks* effective without causing anything.
+- **A hidden "ready to buy" state** (`in_market`) affects 32% of customers. It
+  makes them buy more *and* see more ads. It is never saved to the data, so no
+  method can see it - just like in real life.
 
-Three pages, one per result area, built on CSVs exported straight from the
-pipeline:
+The data: 8,000 customers, 89,540 purchases, 15,238 ad journeys, 12 channels,
+2 years. The first ~17 months are used to fit models; the last ~7 months are held
+back to test them.
 
-- **Segmentation** - customers, churn rate, and share of predicted value by
-  segment. The story the numbers tell: segment 0 is 7.6% of customers but 37% of
-  value at 31% churn; segments 1 and 3 are 45% of customers holding under 4% of
-  value at ~93% churn.
-- **CLV** - predicted-CLV index by acquisition channel (which channels bring
-  higher-value customers; spread 0.94-1.08).
-- **Attribution** - each method's credit split across the 12 channels, so the
-  disagreement between methods (and against planted truth) is visible at a
-  glance.
+## What I found, in short
 
-The data is exported by `export_bi.py`, which reads the pipeline's own metric
-JSON and recomputes the customer-level frames with the **same** `src.clv`
-functions the report uses - and **asserts** its recomputed segment sizes match
-the report before writing, so the dashboard cannot silently drift from the
-analysis:
+| Question | Answer |
+|---|---|
+| Segments | 5 segments. They do predict the future: churn in the next period ranges from 31% to 95% by segment. One segment is 7.6% of customers but 37% of predicted value. |
+| Picking the number of segments | Six standard ways to pick it gave five different answers (2, 3, 4, 6, 8). A density-based method (HDBSCAN) found no real clusters at all - the customers are one smooth cloud, so the segments are useful cuts, not natural groups. |
+| Lifetime value | BG/NBD + Gamma-Gamma model ranks customers well on the held-back period (rank correlation 0.74) and slightly beats a gradient-boosting challenger (0.73). But the test data follows the model's own assumptions, so real data would score lower (see Part 2). The top 20% of customers hold 77% of value. |
+| Attribution | Every method gives credit to `retargeting`, the channel that does nothing. Last-touch gives it 20% of all credit; Shapley, the best method, still gives it 11%. |
+| What to do | Stop budgeting on last-touch, and run a real experiment (switch retargeting off in some regions) - data without an experiment cannot separate "correlated with buying" from "causes buying". Details in [`out/EXECUTIVE_MEMO.md`](out/EXECUTIVE_MEMO.md). |
+
+## Run it
 
 ```bash
-python export_bi.py          # writes bi_export/*.csv (17 tidy files)
+python src/generate.py       # ~5s    make the simulated data
+python run_analytics.py      # ~1min  main report -> out/analytics_report.txt
+python run_complete.py       # ~7min  deeper checks (dbt build, choosing k, Shapley fixes)
+python -m pytest tests -q    # tests
 ```
 
-Looker Studio was built first because it reaches a public link fastest (browser-
-only, native link-sharing); the Tableau Public version was added so the exact
-"Tableau" keyword is covered too. Both read the same `bi_export/` CSVs, so every
-figure on either dashboard is something the code produced - no estimates.
+## How this README is laid out
+
+- **Part 1 - Segmentation:** choosing the number of segments, HDBSCAN.
+- **Part 2 - Lifetime value:** the CLV model and how it was tested.
+- **Part 3 - Attribution:** Shapley and its fixes, Markov, CAC/ROAS, the hidden
+  confounder.
+- **Part 4 - Engineering:** the dbt pipeline, and the same pipeline on Airflow,
+  Snowflake, Spark and Databricks (mostly to measure what they cost at this size).
+- **Part 5 - Dashboards:** Tableau Public and Looker Studio.
+- Limits and spec coverage at the end.
+
+---
+
+# Part 1 - Segmentation
+
+Customers are described by RFM (how **R**ecently they bought, how **F**requently,
+and how much **M**oney they spend) plus a few behaviour features, then grouped
+with k-means into 5 segments. Segments are numbered, not named.
+
+**Do the segments mean anything?** Yes. Segments are fixed using the first period,
+then checked against the held-back period:
+
+| segment | customers | churn next period | spend next period | share of predicted value |
+|---|---|---|---|---|
+| 0 | 605 (7.6%) | 31% | $725 | 37% |
+| 1 | 1,364 (17.1%) | 92% | $11 | 2% |
+| 2 | 609 (7.6%) | 42% | $65 | 8% |
+| 3 | 2,280 (28.5%) | 95% | $6 | 2% |
+| 4 | 3,142 (39.3%) | 41% | $191 | 51% |
+
+Segments are also stable: re-running on 20 bootstrap samples gives an average
+adjusted Rand index of 0.93.
+
+> **Note:** the report uses k=5 (chosen at the start). The later check below
+> prefers k=6. The report was not re-run with k=6.
+
+## Choosing k - six criteria, five answers
+
+| criterion | k |
+|---|---|
+| silhouette (max) | 3 |
+| Calinski-Harabasz (max) | 2 |
+| Davies-Bouldin (min) | 8 |
+| elbow (inertia knee, computed) | 4 |
+| stability (max ARI over bootstraps) | 2 |
+| **forward separation (max adjusted η²)** | **6** |
+
+They disagree for principled reasons. Silhouette rewards compact spheres.
+Stability rewards *coarse* partitions - k=2 is stable on almost any data because
+there is little to disagree about. Forward separation rewards whatever correlates
+with the outcome.
+
+**The one that should decide is forward separation**, because it is the only
+criterion tied to what the segments are *for*. The rest measure whether the
+geometry is tidy, which is a question nobody in the business asked. And it is
+reported **adjusted**, because raw η² rises with k mechanically and an unadjusted
+table always recommends the largest k on offer.
+
+### HDBSCAN, swept rather than asserted
+
+| min_cluster_size | clusters | noise share | largest cluster |
+|---|---|---|---|
+| 25 | 8 | 0.849 | 362 |
+| 50 | 2 | **0.556** | 3,228 |
+| 100 | 2 | 0.691 | 2,328 |
+| 200 | 0 | 1.000 | 0 |
+
+**HDBSCAN leaves the majority unassigned at every setting tried**, and that is a
+statement about this customer base rather than about the algorithm: RFM features
+on a retail panel are one diffuse cloud with a thin high-value tail, not a set of
+dense islands. There is no density structure to find, so a density method
+correctly finds none - and a marketing team handed a clustering that covers 44% of
+customers will go back to k-means by the end of the week.
+
+**The comparison is not "which is better".** k-means forces a partition and is
+therefore always actionable and sometimes fictional; it will cheerfully cut a
+single cloud into five wedges and name them. HDBSCAN refuses to invent structure
+and is therefore sometimes honest and often unusable. The useful output of running
+both is knowing which one you are buying - here, k-means is inventing the
+segments, and that is worth knowing before anyone builds a campaign on them.
+
+---
+
+# Part 2 - Customer lifetime value (CLV)
+
+**Model:** BG/NBD predicts how many more purchases a customer will make (and
+whether they have quietly left); Gamma-Gamma predicts how much each purchase is
+worth. Multiply the two and you get predicted CLV. It is fitted on the first
+period and tested on the held-back period.
+
+| model | rank correlation with real spend | mean abs error |
+|---|---|---|
+| **BG/NBD + Gamma-Gamma** | **0.746** | **$91.94** |
+| gradient-boosting challenger | 0.729 | $97.48 |
+
+(Scored on a 30% test split. On all customers the BG/NBD rank correlation is 0.74.)
+
+Sorted into ten groups by predicted value, predicted and real spend match closely
+for the top half (ratio 0.95-1.17). The Gamma-Gamma assumption (order size does
+not depend on how often someone buys) holds here: correlation +0.02.
+
+**Why BG/NBD over the challenger:** it does not only rank better. It also gives
+the chance each customer is still active, it can predict further ahead than the
+data it was trained on, and its four parameters can be explained to a person.
+
+> **Caveat - this test is too easy.** The simulated data is generated using the
+> same process BG/NBD assumes, so the model is being tested on data that fits it
+> perfectly. That is why the per-customer correlation (0.82) is so high. On real
+> data expect it to drop a lot. What this section really proves is that the
+> fitting and testing code works, not that BG/NBD predicts real customers this
+> well.
+
+**Linked back to segments:** the top 20% of customers hold 77% of predicted
+value, and segments 0 and 4 together hold 88%.
+
+---
+
+# Part 3 - Attribution
+
+Attribution means: a customer saw several ads and then bought - how much credit
+does each channel get? Seven methods are compared (first-touch, last-touch,
+linear, time-decay, Markov, Shapley, sampled Shapley), all scored against the
+known true effects. The sections below go deeper into the two most-used "smart"
+methods (Shapley and Markov), then money (CAC/ROAS), then the hidden confounder.
+
+## Shapley at twelve channels - and the check that failed
+
+Shapley splits credit fairly by asking: on average, how much does adding this
+channel raise the chance of buying? Exact Shapley is slow with many channels,
+so people usually estimate it by random sampling. This checks that shortcut.
+
+Exact Shapley over 12 channels is 4,096 coalitions: large enough to be interesting,
+small enough that the exact answer still exists. So the sampled estimator can be
+scored against the thing it approximates.
+
+| permutations | mean abs error |
+|---|---|
+| 25 | 0.0713 |
+| 100 | 0.0730 |
+| 400 | 0.0596 |
+| 800 | **0.0572** |
+
+**32× more permutations should cut Monte-Carlo error by 5.66×. Measured: 1.25×.**
+
+It does not converge. The error falls a little and plateaus, which means the gap
+is **bias, not variance** - the sampler is converging to a different number, not
+noisily to the same one.
+
+The cause is that only **2,519 of 4,096 coalitions were ever observed**. A
+permutation walks the lattice one channel at a time and cannot advance when the
+next coalition was never seen, so permutations *stall*, and they stall more often
+for channels appearing in rare combinations. The exact estimator has the same
+missing data but reweights by the coalitions it did use; the sampler cannot,
+because it never learns which ones it skipped.
+
+**So they are not the same estimator at two sample sizes - they are different
+estimators.** Sampled Shapley on a sparse coalition lattice needs a different
+value function, not more permutations. This is precisely the check the usual
+justification for sampling skips: "the exact version is intractable" is true at 30
+channels and is also the regime where nobody can discover this.
+
+The stall is now **counted rather than inferred**: the exact-set sampler stalls on
+**1,828 of 4,800 permutation steps (38.1%)**. More than a third of every walk
+lands on a coalition nobody was ever exposed to.
+
+## The fix - two value functions, and they are not the same fix
+
+The section above stops at the problem. This is the repair.
+
+### Fix 1 - a value function defined on the whole lattice
+
+`v(S)` = the conversion rate among journeys whose channel set is a **subset** of
+S: *"what is achievable using only the channels in S"*. The old one asks *"what
+happened to the customers who saw exactly this combination and nothing else"* - a
+question about a rarer and rarer group as the coalition grows, and undefined once
+that group is empty.
+
+| | coalitions defined |
+|---|---|
+| exact-set | 2,519 of 4,096 (61.5%) |
+| **subset-closure** | **4,095 of 4,096 (100.0%)** |
+
+The one undefined coalition is the empty set, and that is correct: no channels is
+no marketing, and the rate is zero by *definition* rather than by missing data.
+
+Same estimator, same permutations, same seed logic - only the game being sampled
+changed:
+
+| permutations | exact-set error | closure error |
+|---|---|---|
+| 25 | 0.08459 | 0.02425 |
+| 100 | 0.06154 | 0.01172 |
+| 400 | 0.05393 | 0.00616 |
+| 800 | **0.05034** (plateau) | **0.00458** |
+
+**32× the permutations should cut a purely noisy error 5.66×. The exact-set
+version manages 1.68×; the closure version manages 5.30×.** It converges, and the
+stall count is zero by construction because there is no rung to fall off.
+
+**Efficiency residual: −5.55e−17** against a grand-coalition value of 0.3262. The
+credits add up to the thing being attributed, to machine precision - a check that
+was not available for the exact-set version at all, whose grand coalition is
+estimated from whichever handful of customers happened to see all twelve channels.
+
+> **The number of seeds needed to measure a convergence rate is itself something
+> that has to be checked.** One seed read **8.10×** and was non-monotone; six
+> seeds read **6.44×**. Both are *above* the 5.66× ceiling that 1/√n sets - which
+> is not a fast estimator, it is an unconverged measurement *of* an estimator. It
+> took twelve seeds to settle underneath the ceiling where it belongs. The same
+> mistake this section exists to catch, one level up.
+
+### Fix 2 - Shapley inside each journey
+
+Not the same fix. It changes what the lattice **is**: a journey with five touches
+has 32 sub-coalitions whether the catalogue holds 12 channels or 300.
+
+```
+distinct channel sets      : 2,519
+most channels in a journey : 9
+sub-coalitions per journey : 512 at that maximum
+marginal evaluations       : 454,200, computed EXACTLY
+```
+
+No sampling at all. **The intractability that justified sampling was a property of
+the value function, not of the problem.**
+
+> **The test caught this claim being false in my own implementation.** The first
+> version called the dense builder for its value function, which materialises
+> 2^n. At 12 channels that is 4,096 and invisible; the test that runs it at 30
+> channels asked for **8 GiB**. The estimator whose entire claim is that it does
+> not depend on channel count was depending on channel count - and the claim sat
+> in the docstring through a full clean run before a test disagreed with it. It
+> now builds one zeta transform per *journey*, over that journey's own bits, and
+> a test pins that the local answer equals the global one to 1e−12.
+
+### Against planted truth
+
+| method | MAE vs truth |
+|---|---|
+| **per-journey** | **0.0247** |
+| closure | 0.0268 |
+| exact-set | 0.0292 |
+| sampled (old) | 0.0466 |
+
+Both fixes beat what they replaced, but they are not two approximations of one
+number. They answer two different questions. Closure asks what a channel adds to
+what is achievable. Per-journey asks how each observed journey's outcome divides
+among the touches that were in it. Nothing makes them agree, and reporting
+whichever scored better without saying they measure different things would be
+picking an estimand by leaderboard.
+
+And the zero-effect channel is still credited **0.0812** under closure and
+**0.0690** per journey. **Fixing the estimator does not fix the data** - the same
+conclusion the confounder section reaches from the other direction.
+
+## Higher-order Markov - every channel gets exactly zero
+
+| order | states | thin-state share | max removal effect | channels with zero credit |
+|---|---|---|---|---|
+| 1 | 13 | 0.000 | 0.000089 | **12 / 12** |
+| 2 | 152 | 0.092 | 0.000010 | **12 / 12** |
+| 3 | 1,354 | 0.287 | 0.000000 | **12 / 12** |
+
+**That is not a bug, and it is the most useful thing in the section.**
+
+This implementation removes a channel by **deleting the touch from the journeys**
+and re-estimating - the counterfactual a marketer means by "what if we turned it
+off". Done that way the conversion probability does not move, because in
+observational path data the outcome is attached to the **journey**, not to the
+path: a journey that converted still converted with one touch removed.
+
+The textbook removal effect avoids that by deleting the **node from the graph** and
+renormalising, which strands the removed node's inbound probability mass in the
+null state. That produces a satisfying non-zero number - `markov_removal` scores
+0.1082 MAE with it below - and the number comes from the graph representation
+rather than from anything about the channel.
+
+The two implementations disagree completely, and **the one that returns zeros is
+the one being honest.** "Remove the channel from the graph" was never a causal
+statement; this is what it looks like when you write down the counterfactual it
+claims to compute and then actually compute it. Both are kept, and a test pins
+each.
+
+## CAC and ROAS - and why channel-level ones never reconcile
+
+CAC = cost to acquire one customer; ROAS = revenue per dollar of ad spend.
+"Incremental" means counting only the sales the channel actually caused.
+
+| channel | spend | observational CAC | **incremental CAC** | observational ROAS | incremental ROAS |
+|---|---|---|---|---|---|
+| paid_search | $2,984.80 | $1.18 | $2.92 | 119.75 | 133.18 |
+| shopping_feed | $979.38 | $0.58 | $1.57 | 238.70 | 248.04 |
+| affiliate | $484.47 | $0.30 | $1.42 | 462.53 | 273.51 |
+| **retargeting** | $298.50 | **$0.16** | **∞** | **861.66** | **0.00** |
+
+Blended CAC is $1.27. The channels' `conversions_touched` sum to **20,344 against
+4,971 actual conversions**, because every conversion touched by four channels is
+counted four times. That is what every channel-level CAC in every marketing deck
+is, and it is why the numbers never reconcile to the blended figure.
+
+**Look at `retargeting`**: a channel that causes nothing has a defensible $0.16
+CAC and an 861× ROAS, and would survive any efficiency review. Its incremental CAC
+is infinite. That gap is the business case for the experiment, denominated in
+dollars rather than in credit shares.
+
+## The unobserved confounder - why no method here can win
+
+A confounder is something that drives both ad exposure and buying. If you
+cannot see it, you cannot separate the ad's effect from it.
+
+`in_market` is a latent state affecting **32%** of customers. It raises conversion
+probability by 0.16 **and** multiplies exposure to closing channels by 2.4×. It is
+never written to disk.
+
+| method | MAE vs truth | credit to the zero-effect channel |
+|---|---|---|
+| shapley | **0.0292** | 0.1065 |
+| linear | 0.0344 | 0.0900 |
+| time_decay | 0.0348 | 0.1243 |
+| shapley_sampled | 0.0466 | 0.1257 |
+| last_touch | 0.0620 | 0.1996 |
+| first_touch | 0.0772 | 0.0163 |
+| markov_removal | 0.1082 | 0.1166 |
+
+**Every method credits the zero-effect channel, and every method has non-trivial
+error.** The distinction from the planted retargeting confound matters: that one
+is observable *in principle* - propensity is a customer attribute a good model
+could proxy. This one is not, and no attribution system in the world can condition
+on it: it is the thing the customer knows and the ad server does not.
+
+The useful reading is not the ranking. It is that the ranking is now a comparison
+of **how each method fails** rather than a search for one that succeeds - with an
+unobserved common cause of exposure and outcome, none of them *can*. That is a
+theorem, not a limitation of these implementations, and it is why the geo holdout
+is the only instrument that answers the question at all.
+
+---
+
+# Part 4 - Engineering
+
+The analysis runs on a small data pipeline. These sections describe it, and
+then run the same pipeline on bigger tools (Airflow, Snowflake, Spark,
+Databricks) to measure what they add - and cost - at this data size.
 
 ## A pipeline, not three scripts
 
@@ -292,255 +630,55 @@ python databricks/export_raw_csv.py    # -> databricks/data/{transactions,touche
 # then Run All and read the printed transform wall-clock.
 ```
 
-## Choosing k - six criteria, five answers
+---
 
-| criterion | k |
-|---|---|
-| silhouette (max) | 3 |
-| Calinski-Harabasz (max) | 2 |
-| Davies-Bouldin (min) | 8 |
-| elbow (inertia knee, computed) | 4 |
-| stability (max ARI over bootstraps) | 2 |
-| **forward separation (max adjusted η²)** | **6** |
+# Part 5 - Dashboards
 
-They disagree for principled reasons. Silhouette rewards compact spheres.
-Stability rewards *coarse* partitions - k=2 is stable on almost any data because
-there is little to disagree about. Forward separation rewards whatever correlates
-with the outcome.
+## Published dashboards (Tableau Public + Looker Studio)
 
-**The one that should decide is forward separation**, because it is the only
-criterion tied to what the segments are *for*. The rest measure whether the
-geometry is tidy, which is a question nobody in the business asked. And it is
-reported **adjusted**, because raw η² rises with k mechanically and an unadjusted
-table always recommends the largest k on offer.
+The same three result areas are published as an interactive dashboard on **two**
+BI platforms - pick whichever a given job posting names.
 
-### HDBSCAN, swept rather than asserted
+**Tableau Public** (three tabs: Segmentation, CLV, Attribution; no sign-in to view):
+https://public.tableau.com/app/profile/riya.ashokbhai.soni/viz/CustomerAnalytics-SegmentationCLVAttribution/Segmentation
 
-| min_cluster_size | clusters | noise share | largest cluster |
-|---|---|---|---|
-| 25 | 8 | 0.849 | 362 |
-| 50 | 2 | **0.556** | 3,228 |
-| 100 | 2 | 0.691 | 2,328 |
-| 200 | 0 | 1.000 | 0 |
+Built in Tableau's browser web-authoring on the same exported CSVs: Segmentation =
+customers by segment, CLV = share of predicted value by segment (Segment 0 = 37%,
+Segment 4 = 51%), Attribution = the 7-method × 12-channel credit matrix with the
+planted-truth row, so the methods' disagreement is visible cell by cell.
 
-**HDBSCAN leaves the majority unassigned at every setting tried**, and that is a
-statement about this customer base rather than about the algorithm: RFM features
-on a retail panel are one diffuse cloud with a thin high-value tail, not a set of
-dense islands. There is no density structure to find, so a density method
-correctly finds none - and a marketing team handed a clustering that covers 44% of
-customers will go back to k-means by the end of the week.
+**Looker Studio** (unlisted - no sign-in required):
+https://lookerstudio.google.com/reporting/97a07987-f61e-4930-9219-fa5d02c239cc
 
-**The comparison is not "which is better".** k-means forces a partition and is
-therefore always actionable and sometimes fictional; it will cheerfully cut a
-single cloud into five wedges and name them. HDBSCAN refuses to invent structure
-and is therefore sometimes honest and often unusable. The useful output of running
-both is knowing which one you are buying - here, k-means is inventing the
-segments, and that is worth knowing before anyone builds a campaign on them.
+Three pages, one per result area, built on CSVs exported straight from the
+pipeline:
 
-## Shapley at twelve channels - and the check that failed
+- **Segmentation** - customers, churn rate, and share of predicted value by
+  segment. The story the numbers tell: segment 0 is 7.6% of customers but 37% of
+  value at 31% churn; segments 1 and 3 are 45% of customers holding under 4% of
+  value at ~93% churn.
+- **CLV** - predicted-CLV index by acquisition channel (which channels bring
+  higher-value customers; spread 0.94-1.08).
+- **Attribution** - each method's credit split across the 12 channels, so the
+  disagreement between methods (and against planted truth) is visible at a
+  glance.
 
-Exact Shapley over 12 channels is 4,096 coalitions: large enough to be interesting,
-small enough that the exact answer still exists. So the sampled estimator can be
-scored against the thing it approximates.
+The data is exported by `export_bi.py`, which reads the pipeline's own metric
+JSON and recomputes the customer-level frames with the **same** `src.clv`
+functions the report uses - and **asserts** its recomputed segment sizes match
+the report before writing, so the dashboard cannot silently drift from the
+analysis:
 
-| permutations | mean abs error |
-|---|---|
-| 25 | 0.0713 |
-| 100 | 0.0730 |
-| 400 | 0.0596 |
-| 800 | **0.0572** |
-
-**32× more permutations should cut Monte-Carlo error by 5.66×. Measured: 1.25×.**
-
-It does not converge. The error falls a little and plateaus, which means the gap
-is **bias, not variance** - the sampler is converging to a different number, not
-noisily to the same one.
-
-The cause is that only **2,519 of 4,096 coalitions were ever observed**. A
-permutation walks the lattice one channel at a time and cannot advance when the
-next coalition was never seen, so permutations *stall*, and they stall more often
-for channels appearing in rare combinations. The exact estimator has the same
-missing data but reweights by the coalitions it did use; the sampler cannot,
-because it never learns which ones it skipped.
-
-**So they are not the same estimator at two sample sizes - they are different
-estimators.** Sampled Shapley on a sparse coalition lattice needs a different
-value function, not more permutations. This is precisely the check the usual
-justification for sampling skips: "the exact version is intractable" is true at 30
-channels and is also the regime where nobody can discover this.
-
-The stall is now **counted rather than inferred**: the exact-set sampler stalls on
-**1,828 of 4,800 permutation steps (38.1%)**. More than a third of every walk
-lands on a coalition nobody was ever exposed to.
-
-## The fix - two value functions, and they are not the same fix
-
-The previous pass stopped at the diagnosis. This is the repair.
-
-### Fix 1 - a value function defined on the whole lattice
-
-`v(S)` = the conversion rate among journeys whose channel set is a **subset** of
-S: *"what is achievable using only the channels in S"*. The old one asks *"what
-happened to the customers who saw exactly this combination and nothing else"* - a
-question about a rarer and rarer group as the coalition grows, and undefined once
-that group is empty.
-
-| | coalitions defined |
-|---|---|
-| exact-set | 2,519 of 4,096 (61.5%) |
-| **subset-closure** | **4,095 of 4,096 (100.0%)** |
-
-The one undefined coalition is the empty set, and that is correct: no channels is
-no marketing, and the rate is zero by *definition* rather than by missing data.
-
-Same estimator, same permutations, same seed logic - only the game being sampled
-changed:
-
-| permutations | exact-set error | closure error |
-|---|---|---|
-| 25 | 0.08459 | 0.02425 |
-| 100 | 0.06154 | 0.01172 |
-| 400 | 0.05393 | 0.00616 |
-| 800 | **0.05034** (plateau) | **0.00458** |
-
-**32× the permutations should cut a purely noisy error 5.66×. The exact-set
-version manages 1.68×; the closure version manages 5.30×.** It converges, and the
-stall count is zero by construction because there is no rung to fall off.
-
-**Efficiency residual: −5.55e−17** against a grand-coalition value of 0.3262. The
-credits add up to the thing being attributed, to machine precision - a check that
-was not available for the exact-set version at all, whose grand coalition is
-estimated from whichever handful of customers happened to see all twelve channels.
-
-> **The number of seeds needed to measure a convergence rate is itself something
-> that has to be checked.** One seed read **8.10×** and was non-monotone; six
-> seeds read **6.44×**. Both are *above* the 5.66× ceiling that 1/√n sets - which
-> is not a fast estimator, it is an unconverged measurement *of* an estimator. It
-> took twelve seeds to settle underneath the ceiling where it belongs. The same
-> mistake this section exists to catch, one level up.
-
-### Fix 2 - Shapley inside each journey
-
-Not the same fix. It changes what the lattice **is**: a journey with five touches
-has 32 sub-coalitions whether the catalogue holds 12 channels or 300.
-
-```
-distinct channel sets      : 2,519
-most channels in a journey : 9
-sub-coalitions per journey : 512 at that maximum
-marginal evaluations       : 454,200, computed EXACTLY
+```bash
+python export_bi.py          # writes bi_export/*.csv (17 tidy files)
 ```
 
-No sampling at all. **The intractability that justified sampling was a property of
-the value function, not of the problem.**
+Looker Studio was built first because it reaches a public link fastest (browser-
+only, native link-sharing); the Tableau Public version was added so the exact
+"Tableau" keyword is covered too. Both read the same `bi_export/` CSVs, so every
+figure on either dashboard is something the code produced - no estimates.
 
-> **The test caught this claim being false in my own implementation.** The first
-> version called the dense builder for its value function, which materialises
-> 2^n. At 12 channels that is 4,096 and invisible; the test that runs it at 30
-> channels asked for **8 GiB**. The estimator whose entire claim is that it does
-> not depend on channel count was depending on channel count - and the claim sat
-> in the docstring through a full clean run before a test disagreed with it. It
-> now builds one zeta transform per *journey*, over that journey's own bits, and
-> a test pins that the local answer equals the global one to 1e−12.
-
-### Against planted truth
-
-| method | MAE vs truth |
-|---|---|
-| **per-journey** | **0.0247** |
-| closure | 0.0268 |
-| exact-set | 0.0292 |
-| sampled (old) | 0.0466 |
-
-Both fixes beat what they replaced, but they are not two approximations of one
-number. They answer two different questions. Closure asks what a channel adds to
-what is achievable. Per-journey asks how each observed journey's outcome divides
-among the touches that were in it. Nothing makes them agree, and reporting
-whichever scored better without saying they measure different things would be
-picking an estimand by leaderboard.
-
-And the zero-effect channel is still credited **0.0812** under closure and
-**0.0690** per journey. **Fixing the estimator does not fix the data** - the same
-conclusion the confounder section reaches from the other direction.
-
-## Higher-order Markov - every channel gets exactly zero
-
-| order | states | thin-state share | max removal effect | channels with zero credit |
-|---|---|---|---|---|
-| 1 | 13 | 0.000 | 0.000089 | **12 / 12** |
-| 2 | 152 | 0.092 | 0.000010 | **12 / 12** |
-| 3 | 1,354 | 0.287 | 0.000000 | **12 / 12** |
-
-**That is not a bug, and it is the most useful thing in the section.**
-
-This implementation removes a channel by **deleting the touch from the journeys**
-and re-estimating - the counterfactual a marketer means by "what if we turned it
-off". Done that way the conversion probability does not move, because in
-observational path data the outcome is attached to the **journey**, not to the
-path: a journey that converted still converted with one touch removed.
-
-The textbook removal effect avoids that by deleting the **node from the graph** and
-renormalising, which strands the removed node's inbound probability mass in the
-null state. That produces a satisfying non-zero number - `markov_removal` scores
-0.1082 MAE with it below - and the number comes from the graph representation
-rather than from anything about the channel.
-
-The two implementations disagree completely, and **the one that returns zeros is
-the one being honest.** "Remove the channel from the graph" was never a causal
-statement; this is what it looks like when you write down the counterfactual it
-claims to compute and then actually compute it. Both are kept, and a test pins
-each.
-
-## CAC and ROAS - and why channel-level ones never reconcile
-
-| channel | spend | observational CAC | **incremental CAC** | observational ROAS | incremental ROAS |
-|---|---|---|---|---|---|
-| paid_search | $2,984.80 | $1.18 | $2.92 | 119.75 | 133.18 |
-| shopping_feed | $979.38 | $0.58 | $1.57 | 238.70 | 248.04 |
-| affiliate | $484.47 | $0.30 | $1.42 | 462.53 | 273.51 |
-| **retargeting** | $298.50 | **$0.16** | **∞** | **861.66** | **0.00** |
-
-Blended CAC is $1.27. The channels' `conversions_touched` sum to **20,344 against
-4,971 actual conversions**, because every conversion touched by four channels is
-counted four times. That is what every channel-level CAC in every marketing deck
-is, and it is why the numbers never reconcile to the blended figure.
-
-**Look at `retargeting`**: a channel that causes nothing has a defensible $0.16
-CAC and an 861× ROAS, and would survive any efficiency review. Its incremental CAC
-is infinite. That gap is the business case for the experiment, denominated in
-dollars rather than in credit shares.
-
-## The unobserved confounder - why no method here can win
-
-The previous README ended by admitting *"the attribution simulator has no
-unobserved confounders beyond the one I planted - so every method here performs
-better than it would on real data."* That is now false by construction.
-
-`in_market` is a latent state affecting **32%** of customers. It raises conversion
-probability by 0.16 **and** multiplies exposure to closing channels by 2.4×. It is
-never written to disk.
-
-| method | MAE vs truth | credit to the zero-effect channel |
-|---|---|---|
-| shapley | **0.0292** | 0.1065 |
-| linear | 0.0344 | 0.0900 |
-| time_decay | 0.0348 | 0.1243 |
-| shapley_sampled | 0.0466 | 0.1257 |
-| last_touch | 0.0620 | 0.1996 |
-| first_touch | 0.0772 | 0.0163 |
-| markov_removal | 0.1082 | 0.1166 |
-
-**Every method credits the zero-effect channel, and every method has non-trivial
-error.** The distinction from the planted retargeting confound matters: that one
-is observable *in principle* - propensity is a customer attribute a good model
-could proxy. This one is not, and no attribution system in the world can condition
-on it: it is the thing the customer knows and the ad server does not.
-
-The useful reading is not the ranking. It is that the ranking is now a comparison
-of **how each method fails** rather than a search for one that succeeds - with an
-unobserved common cause of exposure and outcome, none of them *can*. That is a
-theorem, not a limitation of these implementations, and it is why the geo holdout
-is the only instrument that answers the question at all.
+---
 
 ## What is deliberately not here
 
@@ -555,7 +693,7 @@ is the only instrument that answers the question at all.
 - **The dbt project is five models.** No incremental materialisations, no
   snapshots, no exposures, no docs site.
 - **Neither Shapley fix is causal**, and neither claims to be. Both are exact
-  allocations of an *observational* quantity; the confounder section below is
+  allocations of an *observational* quantity; the confounder section above is
   what says why that quantity is not the one anybody wants.
 - **The generator is still a model.** BG/NBD is fitted to a BG/NBD process, and
   the confounder is one I chose - a real system has many, correlated, and none of

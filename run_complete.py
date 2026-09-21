@@ -41,7 +41,7 @@ def main():
     cust = jd["customer_id"]
 
     emit("=" * 78)
-    emit("DATA-1 COMPLETION PASS -- %d journeys, %d channels, %d customers"
+    emit("COMPLETION PASS -- %d journeys, %d channels, %d customers"
          % (len(journeys), len(channels), len(set(cust))))
     emit("=" * 78)
     emit("")
